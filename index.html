@@ -157,7 +157,9 @@
             mapWidth: 5500,  // Çok geniş harita (15 soru için)
             state: 'intro',  // 'intro', 'verification', 'playing', 'finished'
             startButton: null,  // Başlat butonu referansı
-            backButton: null    // Ana menü butonu referansı
+            backButton: null,   // Ana menü butonu referansı
+            sceneState: 'opening',  // 'opening', 'gameplay' - oyun içi sahne durumu
+            openingDialogShown: false  // Açılış dialogu gösterildi mi?
         };
 
         // Verification quiz (giriş doğrulama sorusu)
@@ -181,6 +183,8 @@
             // Buton referanslarını temizle
             if (newState === 'playing') {
                 game.startButton = null;
+                game.sceneState = 'opening';  // Açılış sahnesinden başla
+                game.openingDialogShown = false;  // Dialog henüz gösterilmedi
             } else if (newState === 'intro') {
                 game.backButton = null;
             } else if (newState === 'verification') {
@@ -232,7 +236,10 @@
             height: 40,
             spriteYOffset: 15,  // Sprite'ı aşağı kaydır (yarıya indirildi)
             spriteHeightExtension: 15,  // Sprite yüksekliğini artır (yarıya indirildi)
-            type: 'helper'
+            type: 'helper',
+            speed: 2,  // Yürüme hızı
+            isMoving: false,  // Hareket ediyor mu?
+            targetX: null  // Hedef X pozisyonu
         };
 
         // Platforms (genişletilmiş harita - 15 soru için)
@@ -414,11 +421,38 @@
             dialog.currentObject = null;
         }
 
+        // Metin sarma yardımcı fonksiyonu
+        function wrapText(text, maxWidth, font) {
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+
+            ctx.font = font;
+            
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                const width = ctx.measureText(currentLine + ' ' + word).width;
+                if (width < maxWidth) {
+                    currentLine += ' ' + word;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
         // Handle answer click
         function handleAnswer(answerIndex) {
             // Kirpi diyaloğu ise sadece kapat
             if (dialog.isHedgehogDialog) {
                 closeDialog();
+
+                // Açılış dialogu kapandıysa, gameplay'e geç
+                if (game.sceneState === 'opening') {
+                    game.sceneState = 'gameplay';
+                }
                 return;
             }
 
@@ -491,14 +525,48 @@
             // Check dialog answers
             if (!dialog.isOpen) return;
 
-            // Check if clicked on an answer
-            const answerBoxY = 300;
+            // Dialog box pozisyonları (drawDialog ile aynı hesaplamalar)
+            const dialogX = 150;
+            const dialogY = 200;
+            const dialogWidth = 500;
+            const textPadding = 40;
+            const maxTextWidth = dialogWidth - (textPadding * 2);
+            const lineHeight = 28;
+            
+            // Metinleri sarmala (tıklama kontrolü için)
+            ctx.font = 'bold 20px Arial';
+            const textLines = wrapText(dialog.text, maxTextWidth, 'bold 20px Arial');
+            let text2Lines = [];
+            if (dialog.text2) {
+                text2Lines = wrapText(dialog.text2, maxTextWidth, 'bold 20px Arial');
+            }
+            
+            const textHeight = textLines.length * lineHeight;
+            const text2Height = text2Lines.length * lineHeight;
+            const textGap = text2Lines.length > 0 ? 15 : 0;
+            const totalTextHeight = textHeight + text2Height + textGap;
+            
             const answerHeight = 40;
             const answerSpacing = 50;
+            const answerAreaHeight = dialog.answers.length * answerSpacing;
+            
+            const dialogHeight = Math.max(300, totalTextHeight + answerAreaHeight + 100);
+            const dialogBoxY = dialogY + (300 - dialogHeight) / 2;
+            
+            let currentY = dialogBoxY + 50;
+            currentY += textHeight + textGap;
+            if (text2Lines.length > 0) {
+                currentY += text2Height + 20;
+            }
 
+            // Check if clicked on an answer
             dialog.answers.forEach((answer, index) => {
-                const y = answerBoxY + index * answerSpacing;
-                if (mouseX > 200 && mouseX < 600 && mouseY > y && mouseY < y + answerHeight) {
+                const answerY = currentY + index * answerSpacing;
+                const answerX = dialogX + 50;
+                const answerWidth = dialogWidth - 100;
+                
+                if (mouseX > answerX && mouseX < answerX + answerWidth && 
+                    mouseY > answerY && mouseY < answerY + answerHeight) {
                     handleAnswer(index);
                 }
             });
@@ -561,6 +629,73 @@
 
             // Y ekseninde kamera sabit (istersek yukarı-aşağı da takip edebilir)
             camera.y = 0;
+        }
+
+        // Update hedgehog (kirpi hareketi ve açılış sahnesi)
+        function updateHedgehog() {
+            // Açılış sahnesi: Kirpi otomatik olarak rakun'a doğru yürür
+            if (game.sceneState === 'opening') {
+                // Merkez noktalarını hesapla
+                const playerCenterX = player.x + player.width / 2;
+                const hedgehogCenterX = hedgehog.x + hedgehog.width / 2;
+                
+                // Etkileşim mesafesi (checkInteraction ile aynı)
+                const interactionDistance = 80;
+                
+                // Mevcut mesafeyi kontrol et
+                const currentDistance = Math.abs(playerCenterX - hedgehogCenterX);
+                
+                // Eğer etkileşim mesafesindeyse, dur ve dialog aç
+                if (currentDistance <= interactionDistance) {
+                    hedgehog.isMoving = false;
+                    
+                    // Dialog henüz gösterilmediyse, otomatik aç
+                    if (!game.openingDialogShown && !dialog.isOpen) {
+                        game.openingDialogShown = true;
+                        openOpeningDialog();
+                    }
+                    return; // Hareket etme
+                }
+                
+                // Kirpi rakunun hangi tarafında?
+                // Eğer kirpi rakunun sağındaysa, rakunun sağına yaklaş
+                // Eğer kirpi rakunun solundaysa, rakunun soluna yaklaş
+                const targetDistance = interactionDistance - 10; // Etkileşim mesafesinden biraz önce dur
+                
+                if (hedgehogCenterX > playerCenterX) {
+                    // Kirpi sağda, rakunun sağına yaklaş
+                    // Hedef: rakun merkezinin sağında targetDistance kadar uzakta
+                    hedgehog.targetX = playerCenterX + targetDistance - hedgehog.width / 2;
+                } else {
+                    // Kirpi solda, rakunun soluna yaklaş
+                    // Hedef: rakun merkezinin solunda targetDistance kadar uzakta
+                    hedgehog.targetX = playerCenterX - targetDistance - hedgehog.width / 2;
+                }
+                
+                hedgehog.isMoving = true;
+
+                // Hedefe doğru hareket et
+                if (Math.abs(hedgehog.x - hedgehog.targetX) > 3) {
+                    if (hedgehog.x < hedgehog.targetX) {
+                        hedgehog.x += hedgehog.speed;
+                    } else {
+                        hedgehog.x -= hedgehog.speed;
+                    }
+                } else {
+                    // Hedefe ulaştı, dur (ama dialog kontrolü yukarıda yapılıyor)
+                    hedgehog.isMoving = false;
+                }
+            }
+        }
+
+        // Opening dialog (açılış sahnesi dialogu)
+        function openOpeningDialog() {
+            dialog.isOpen = true;
+            dialog.isHedgehogDialog = true;
+            dialog.text = 'Rakun merhaba! Bugün 5 Kasım 2023. Şimdi seninle zamanda yolculuğa çıkıyoruz!';
+            dialog.text2 = 'Biraz hafızanı tazeleyelim. Hazır olduğunu düşünüyorum!';
+            dialog.answers = ['Hazırım! 💕'];
+            dialog.currentObject = null;
         }
 
         // Draw player (Sprite-based Raccoon) - Kamera offset ile
@@ -735,35 +870,86 @@
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // Dialog box boyutları
+            const dialogX = 150;
+            const dialogY = 200;
+            const dialogWidth = 500;
+            const textPadding = 40;
+            const maxTextWidth = dialogWidth - (textPadding * 2);
+            const lineHeight = 28;
+            
+            // Metinleri sarmala
+            ctx.font = 'bold 20px Arial';
+            const textLines = wrapText(dialog.text, maxTextWidth, 'bold 20px Arial');
+            let text2Lines = [];
+            if (dialog.text2) {
+                text2Lines = wrapText(dialog.text2, maxTextWidth, 'bold 20px Arial');
+            }
+            
+            // Toplam metin yüksekliğini hesapla
+            const textHeight = textLines.length * lineHeight;
+            const text2Height = text2Lines.length * lineHeight;
+            const textGap = text2Lines.length > 0 ? 15 : 0;
+            const totalTextHeight = textHeight + text2Height + textGap;
+            
+            // Cevaplar için alan
+            const answerHeight = 40;
+            const answerSpacing = 50;
+            const answerAreaHeight = dialog.answers.length * answerSpacing;
+            
+            // Dialog box yüksekliği dinamik olarak ayarla
+            const dialogHeight = Math.max(300, totalTextHeight + answerAreaHeight + 100);
+            const dialogBoxY = dialogY + (300 - dialogHeight) / 2; // Merkeze hizala veya minimum yükseklik
+
             // Dialog box
             ctx.fillStyle = 'white';
-            ctx.roundRect(150, 200, 500, 300, 10);
+            ctx.roundRect(dialogX, dialogBoxY, dialogWidth, dialogHeight, 10);
             ctx.fill();
+            
+            // Gölge efekti için border
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.roundRect(dialogX, dialogBoxY, dialogWidth, dialogHeight, 10);
+            ctx.stroke();
 
-            // Question
+            // Metin başlangıç pozisyonu
+            let currentY = dialogBoxY + 50;
+            
+            // Question text (dialog.text)
             ctx.fillStyle = 'black';
             ctx.font = 'bold 20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(dialog.text, 400, 250);
+            ctx.textAlign = 'left';
+            textLines.forEach((line, index) => {
+                ctx.fillText(line, dialogX + textPadding, currentY + (index * lineHeight));
+            });
+            currentY += textHeight + textGap;
+            
+            // Question text2 (dialog.text2) - varsa
+            if (text2Lines.length > 0) {
+                ctx.font = 'bold 18px Arial';
+                text2Lines.forEach((line, index) => {
+                    ctx.fillText(line, dialogX + textPadding, currentY + (index * lineHeight));
+                });
+                currentY += text2Height + 20;
+            }
 
             // Answers
-            ctx.textAlign = 'left';
             ctx.font = '16px Arial';
             dialog.answers.forEach((answer, index) => {
-                const y = 300 + index * 50;
+                const answerY = currentY + index * answerSpacing;
 
-                // Answer box
+                // Answer box hover efekti için (basit)
                 ctx.fillStyle = '#f0f0f0';
-                ctx.fillRect(200, y, 400, 40);
+                ctx.fillRect(dialogX + 50, answerY, dialogWidth - 100, answerHeight);
 
                 // Answer border
                 ctx.strokeStyle = '#333';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(200, y, 400, 40);
+                ctx.strokeRect(dialogX + 50, answerY, dialogWidth - 100, answerHeight);
 
                 // Answer text
                 ctx.fillStyle = 'black';
-                ctx.fillText(`${index + 1}. ${answer}`, 220, y + 25);
+                ctx.fillText(`${index + 1}. ${answer}`, dialogX + 70, answerY + 25);
             });
 
             ctx.textAlign = 'left';
@@ -1069,9 +1255,11 @@
                 // Playing screen - SADECE playing state'inde
 
                 // Update
-                if (!dialog.isOpen) {
+                // Açılış sahnesinde oyuncu hareket edemez
+                if (!dialog.isOpen && game.sceneState === 'gameplay') {
                     updatePlayer();
                 }
+                updateHedgehog();  // Kirpi hareketi (açılış sahnesi)
                 updateCamera();  // Kamerayı her zaman güncelle
                 updateAnimation(sprites.raccoon);  // Rakun animasyonu güncelle
                 updateHedgehogAnimation();  // Kirpi animasyonu güncelle
