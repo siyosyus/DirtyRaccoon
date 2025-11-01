@@ -116,6 +116,114 @@
         hedgehogMove.src = 'hedgehog/move/move.png';
         sprites.hedgehog.move.push(hedgehogMove);
 
+        // Load building sprites (yeni yapı)
+        sprites.buildings = {
+            // Blank Shops (renkli boş mağazalar)
+            blankShopBlack: new Image(),
+            blankShopBlue: new Image(),
+            blankShopBrown: new Image(),
+            blankShopPurple: new Image(),
+            blankShopRed: new Image(),
+            blankShopYellow: new Image(),
+            blankShopYellow2: new Image(),
+            blankShop2D: new Image(),
+            
+            // Muted Colour (pastel/soluk renkli binalar)
+            mutedBlue: new Image(),
+            mutedBrown: new Image(),
+            mutedGrayscale: new Image(),
+            mutedGreen: new Image(),
+            mutedPurple: new Image(),
+            mutedPavement: new Image(),
+            
+            // Normal (normal renkli binalar)
+            normalBlue: new Image(),
+            normalGreen: new Image(),
+            normalLightBlue: new Image(),
+            normalPink: new Image(),
+            normalPurple: new Image(),
+            normalRed: new Image(),
+            normalPavement: new Image(),
+            
+            // Themed Shops - Large
+            largeBank: new Image(),
+            largeBar: new Image(),
+            largeCandyShop: new Image(),
+            largeElectronicsShop: new Image(),
+            largeFlorist: new Image(),
+            largeGroceryShop: new Image(),
+            largeGunShop: new Image(),
+            largeIceCreamShop: new Image(),
+            largeJewelleryShop: new Image(),
+            
+            // Themed Shops - Small
+            smallBank: new Image(),
+            smallBar: new Image(),
+            smallCandyShop: new Image(),
+            smallElectronicsShop: new Image(),
+            smallFlorist: new Image(),
+            smallGroceryShop: new Image(),
+            smallGunShop: new Image(),
+            smallIceCreamShop: new Image(),
+            smallJewelleryShop: new Image()
+        };
+        
+        // Blank Shops
+        sprites.buildings.blankShopBlack.src = 'buildings/Blank Shops/Black.png';
+        sprites.buildings.blankShopBlue.src = 'buildings/Blank Shops/blue.png';
+        sprites.buildings.blankShopBrown.src = 'buildings/Blank Shops/Brown.png';
+        sprites.buildings.blankShopPurple.src = 'buildings/Blank Shops/purple.png';
+        sprites.buildings.blankShopRed.src = 'buildings/Blank Shops/red.png';
+        sprites.buildings.blankShopYellow.src = 'buildings/Blank Shops/yellow.png';
+        sprites.buildings.blankShopYellow2.src = 'buildings/Blank Shops/yellow 2.png';
+        sprites.buildings.blankShop2D.src = 'buildings/Blank Shops/2D shop.png';
+        
+        // Muted Colour
+        sprites.buildings.mutedBlue.src = 'buildings/Muted Colour/Blue.png';
+        sprites.buildings.mutedBrown.src = 'buildings/Muted Colour/brown.png';
+        sprites.buildings.mutedGrayscale.src = 'buildings/Muted Colour/Grayscale.png';
+        sprites.buildings.mutedGreen.src = 'buildings/Muted Colour/green.png';
+        sprites.buildings.mutedPurple.src = 'buildings/Muted Colour/purple.png';
+        sprites.buildings.mutedPavement.src = 'buildings/Muted Colour/pavement.png';
+        
+        // Normal
+        sprites.buildings.normalBlue.src = 'buildings/Normal/blue.png';
+        sprites.buildings.normalGreen.src = 'buildings/Normal/green.png';
+        sprites.buildings.normalLightBlue.src = 'buildings/Normal/light blue.png';
+        sprites.buildings.normalPink.src = 'buildings/Normal/pink.png';
+        sprites.buildings.normalPurple.src = 'buildings/Normal/purple.png';
+        sprites.buildings.normalRed.src = 'buildings/Normal/Red.png';
+        sprites.buildings.normalPavement.src = 'buildings/Normal/pavement.png';
+        
+        // Themed Shops - Large
+        sprites.buildings.largeBank.src = 'buildings/Themed shops/Large/Bank.png';
+        sprites.buildings.largeBar.src = 'buildings/Themed shops/Large/Bar.png';
+        sprites.buildings.largeCandyShop.src = 'buildings/Themed shops/Large/Candy Shop.png';
+        sprites.buildings.largeElectronicsShop.src = 'buildings/Themed shops/Large/Electronics Shop.png';
+        sprites.buildings.largeFlorist.src = 'buildings/Themed shops/Large/Florist.png';
+        sprites.buildings.largeGroceryShop.src = 'buildings/Themed shops/Large/Grocery shop.png';
+        sprites.buildings.largeGunShop.src = 'buildings/Themed shops/Large/Gun Shop.png';
+        sprites.buildings.largeIceCreamShop.src = 'buildings/Themed shops/Large/Ice Cream Shop.png';
+        sprites.buildings.largeJewelleryShop.src = 'buildings/Themed shops/Large/Jewellery shop.png';
+        
+        // Themed Shops - Small
+        sprites.buildings.smallBank.src = 'buildings/Themed shops/Small/Bank.png';
+        sprites.buildings.smallBar.src = 'buildings/Themed shops/Small/Bar.png';
+        sprites.buildings.smallCandyShop.src = 'buildings/Themed shops/Small/Candy Shop.png';
+        sprites.buildings.smallElectronicsShop.src = 'buildings/Themed shops/Small/Electronics Shop.png';
+        sprites.buildings.smallFlorist.src = 'buildings/Themed shops/Small/Florist.png';
+        sprites.buildings.smallGroceryShop.src = 'buildings/Themed shops/Small/Grocery shop.png';
+        sprites.buildings.smallGunShop.src = 'buildings/Themed shops/Small/Gun Shop.png';
+        sprites.buildings.smallIceCreamShop.src = 'buildings/Themed shops/Small/Ice Cream Shop.png';
+        sprites.buildings.smallJewelleryShop.src = 'buildings/Themed shops/Small/Jewellery shop.png';
+        
+        // Sprite yükleme hatalarını yakala
+        Object.keys(sprites.buildings).forEach(key => {
+            sprites.buildings[key].onerror = function() {
+                console.error(`Bina sprite yüklenemedi: ${key}`);
+            };
+        });
+
         // Animation update
         function updateAnimation(sprite) {
             sprite.frameDelay++;
@@ -811,6 +919,157 @@
             }
         }
 
+        // Draw clouds (bulutlar) - Arka plan - Paralax efekti
+        function drawClouds() {
+            // Bulutları gökyüzünde dağıt (paralax efekti için yavaş hareket)
+            const cloudPositions = [
+                { x: 100, y: 80, speed: 0.02 },
+                { x: 400, y: 120, speed: 0.03 },
+                { x: 700, y: 60, speed: 0.015 },
+                { x: 50, y: 150, speed: 0.025 },
+                { x: 500, y: 100, speed: 0.02 },
+                { x: 750, y: 140, speed: 0.03 }
+            ];
+            
+            sprites.clouds.forEach((cloud, index) => {
+                if (!cloud.complete || cloud.width === 0) return;
+                
+                const posIndex = index % cloudPositions.length;
+                const pos = cloudPositions[posIndex];
+                
+                // Paralax efekti: Bulutlar kameradan yavaş hareket eder
+                const parallaxX = pos.x - (camera.x * pos.speed);
+                
+                // Bulut ekranın dışına çıktıysa tekrarla
+                let drawX = parallaxX % (canvas.width + cloud.width * 2);
+                if (drawX < -cloud.width) {
+                    drawX += canvas.width + cloud.width * 2;
+                }
+                
+                ctx.drawImage(cloud, drawX, pos.y, cloud.width, cloud.height);
+            });
+        }
+
+        // Draw road (yol) - Kaldırım zemin
+        function drawRoad() {
+            // Zemin seviyesi (platform y: 550 - karakterler bu seviyede duruyor)
+            const groundLevel = 550;
+            const roadHeight = 60;
+            // Kaldırımın üst yüzeyi groundLevel'da, aşağıya doğru çiziliyor
+            const screenY = groundLevel - camera.y;
+            
+            // Basit düz gri kaldırım çiz (aşağıya doğru)
+            ctx.fillStyle = '#C0C0C0'; // Açık gri kaldırım
+            ctx.fillRect(-camera.x, screenY, game.mapWidth, roadHeight);
+            
+            // Üst kısmına hafif bir gölge/kenarlık ekle (derinlik için)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(-camera.x, screenY, game.mapWidth, 2);
+            
+            // Alt kısmına da hafif bir gölge ekle
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(-camera.x, screenY + roadHeight - 2, game.mapWidth, 2);
+        }
+
+        // Draw buildings (binalar) - Yeni sprite yapısı
+        function drawBuildings() {
+            // Zemin seviyesi (platform y: 550)
+            const groundLevel = 550;
+            
+            // Bina kategorileri
+            const smallBuildings = [
+                'smallCandyShop', 'smallBar', 'smallFlorist', 'smallElectronicsShop',
+                'smallGunShop', 'smallJewelleryShop', 'smallIceCreamShop', 'smallBank'
+            ];
+            
+            const largeBuildings = [
+                'largeBank', 'largeBar', 'largeCandyShop', 'largeElectronicsShop',
+                'largeFlorist', 'largeGroceryShop', 'largeGunShop', 'largeIceCreamShop',
+                'largeJewelleryShop', 'normalBlue', 'normalGreen', 'normalRed',
+                'normalPurple', 'normalPink', 'normalLightBlue', 'blankShopBlack',
+                'blankShopBlue', 'blankShopBrown', 'blankShopPurple', 'blankShopRed',
+                'blankShopYellow', 'blankShopYellow2', 'blankShop2D', 'mutedBlue',
+                'mutedBrown', 'mutedGrayscale', 'mutedGreen', 'mutedPurple'
+            ];
+            
+            // Pattern: 2 küçük, 1 büyük, 2 küçük, 1 büyük...
+            let buildings = [];
+            let currentX = 50;
+            const minSpacing = 20; // Minimum binalar arası boşluk
+            
+            let smallIndex = 0;
+            let largeIndex = 0;
+            
+            // 30 bina için pattern oluştur
+            for (let i = 0; i < 30; i++) {
+                const patternPos = i % 3; // 0, 1, 2 (2 küçük, 1 büyük)
+                
+                let spriteKey;
+                if (patternPos === 0 || patternPos === 1) {
+                    // İki küçük bina
+                    spriteKey = smallBuildings[smallIndex % smallBuildings.length];
+                    smallIndex++;
+                } else {
+                    // Bir büyük bina
+                    spriteKey = largeBuildings[largeIndex % largeBuildings.length];
+                    largeIndex++;
+                }
+                
+                // Bina sprite'ının genişliğini kontrol et
+                const buildingSprite = sprites.buildings[spriteKey];
+                const buildingWidth = (buildingSprite && buildingSprite.complete) ? buildingSprite.width : 180;
+                
+                buildings.push({ x: currentX, spriteKey: spriteKey });
+                
+                // Bir sonraki binanın X pozisyonu: mevcut bina genişliği + minimum boşluk
+                currentX += buildingWidth + minSpacing;
+            }
+            
+            // Binaları çizmek için önce genişliklerini hesapla (sprite yüklenmiş olsa bile kontrol için)
+            const buildingsToDraw = [];
+            buildings.forEach(building => {
+                const buildingSprite = sprites.buildings[building.spriteKey];
+                
+                // Sprite yüklenene kadar bekle
+                if (!buildingSprite || !buildingSprite.complete || buildingSprite.width === 0) {
+                    return; // Sprite henüz yüklenmedi, atla
+                }
+                
+                const screenX = building.x - camera.x;
+                const buildingWidth = buildingSprite.width;
+                const buildingHeight = buildingSprite.height;
+                const buildingTop = groundLevel - buildingHeight;
+                const screenY = buildingTop - camera.y;
+                
+                // Sadece ekranda görünen binaları çiz
+                if (screenX + buildingWidth > 0 && screenX < canvas.width) {
+                    buildingsToDraw.push({
+                        sprite: buildingSprite,
+                        screenX: screenX,
+                        screenY: screenY,
+                        width: buildingWidth,
+                        height: buildingHeight
+                    });
+                }
+            });
+            
+            // Binaları çiz - z-order: X pozisyonuna göre (perspektif efekti)
+            // Solda olanlar arkada, sağda olanlar önde çizilmeli
+            buildingsToDraw.sort((a, b) => {
+                // X pozisyonuna göre sırala (soldaki önce - arkada çizilir)
+                return a.screenX - b.screenX;
+            });
+            
+            buildingsToDraw.forEach(building => {
+                // Hafif gölge efekti (binaların altına)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(building.screenX + 3, building.screenY + building.height, building.width - 2, 5);
+                
+                // Bina sprite'ını çiz
+                ctx.drawImage(building.sprite, building.screenX, building.screenY, building.width, building.height);
+            });
+        }
+
         // Draw platforms - Kamera offset ile
         function drawPlatforms() {
             platforms.forEach(platform => {
@@ -1264,20 +1523,40 @@
                 updateAnimation(sprites.raccoon);  // Rakun animasyonu güncelle
                 updateHedgehogAnimation();  // Kirpi animasyonu güncelle
 
-                // Draw - Tamamen siyah arka plan
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // Draw - Scene state'e göre farklı çizim
+                if (game.sceneState === 'opening') {
+                    // Açılış sahnesi: Siyah ekran + spotlight efekti
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Spotlight clip bölgelerini ayarla ve içine çiz
-                ctx.save();
-                createSpotlightClip();
+                    // Spotlight clip bölgelerini ayarla ve içine çiz
+                    ctx.save();
+                    createSpotlightClip();
 
-                // Clip bölgesi içinde: Işık hüzmeleri ve karakterleri çiz
-                drawSpotlightBeams();
-                drawHedgehog();
-                drawPlayer();
+                    // Clip bölgesi içinde: Işık hüzmeleri ve karakterleri çiz
+                    drawSpotlightBeams();
+                    drawHedgehog();
+                    drawPlayer();
 
-                ctx.restore();
+                    ctx.restore();
+                } else {
+                    // Gameplay: Normal oyun ekranı
+                    // Arka plan (gökyüzü gradient - daha zengin)
+                    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                    gradient.addColorStop(0, '#B0E0E6');      // Açık mavi (üst)
+                    gradient.addColorStop(0.6, '#87CEEB');    // Gökyüzü mavisi
+                    gradient.addColorStop(1, '#E0F6FF');      // Çok açık mavi (alt - zemin üstü)
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Oyun elemanlarını çiz (sıralama önemli - arkadan öne)
+                    drawRoad();            // Yol en arkada (pavement)
+                    drawBuildings();       // Binalar yolun üstünde
+                    // drawPlatforms();        // Platformlar geçici olarak gizli
+                    // drawInteractiveObjects(); // Quiz kutuları geçici olarak gizli
+                    drawHedgehog();         // Kirpi karakteri
+                    drawPlayer();           // Rakun karakteri (en önde)
+                }
 
                 drawHUD();       // HUD en üstte (kamera ile hareket etmez)
                 drawDialog();    // Dialog en üstte olmalı
