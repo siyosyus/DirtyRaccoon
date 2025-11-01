@@ -1,208 +1,152 @@
-# Rakun ve Kirpi Platformer Quiz Oyunu - TODO Listesi
+# DirtyRaccoon - Oyun Geliştirme Todo Listesi
 
-## 🎮 Proje Özeti
-Kız arkadaşı için doğum günü hediyesi olarak özel bir 2D platformer quiz oyunu. Ana karakter Rakun (kiz arkadaş), yardımcı karakter Kirpi (erkek arkadaş). Oyuncu nesnelerle etkileşime girerek özel sorular cevaplayacak ve seviyeyi tamamlayacak.
+## ✅ Tamamlanan Özellikler
 
----
+### 1. Görsel İyileştirmeler ve Bina Sistemi
 
-## 📋 Geliştirme Aşamaları
+#### Bina Yerleştirme Pattern'i
+- **2 küçük, 1 büyük** bina pattern'i uygulandı
+- Dinamik bina aralıkları (her binanın gerçek genişliği + 20px minimum boşluk)
+- 30 bina harita boyunca yerleştirildi
+- Z-order (çizim sırası) X pozisyonuna göre düzenlendi (soldaki binalar arkada, sağdakiler önde)
 
-### 1. Temel Kurulum ve Yapı
-- [ ] HTML dosyası oluştur (index.html)
-- [ ] Canvas tabanlı oyun motoru kur
-- [ ] Temel dosya yapısını organize et
-- [ ] Oyun döngüsü (game loop) oluştur
+#### Bina Spriteları
+- Buildings klasöründen sprite'lar yüklendi:
+  - Blank Shops (renkli boş mağazalar)
+  - Muted Colour (pastel renkli binalar)
+  - Normal (normal renkli binalar)
+  - Themed Shops - Large (büyük temalı dükkanlar)
+  - Themed Shops - Small (küçük temalı dükkanlar)
 
-### 2. Karakter Geliştirme
-- [ ] Rakun karakteri tasarla ve çiz
-  - [ ] Durma animasyonu
-  - [ ] Yürüme animasyonu
-  - [ ] Zıplama animasyonu
-- [ ] Kirpi karakteri tasarla ve çiz
-  - [ ] Statik görünüm
-  - [ ] Diyalog anında animasyon
-- [ ] Karakter fizik mekanikleri
-  - [ ] Sağa/sola hareket
-  - [ ] Zıplama mekaniği
-  - [ ] Yerçekimi simülasyonu
-  - [ ] Zemin ve platform çarpışma kontrolü
+#### Caffè Nero Branding
+- İlk büyük içecek satan bina (largeBar) otomatik tespit edildi
+- Binanın tente kısmına "Caffè Nero" yazısı eklendi
+- Mavi renk (#0066CC), bold 32px font
+- Beyaz outline ile okunabilirlik artırıldı
+- Yazı pozisyonu tente üzerine hizalandı
 
-### 3. Seviye Tasarımı
-- [ ] Platform sistemi oluştur
-- [ ] Zemin ve duvar çarpışma sistemi
-- [ ] Etkileşimli nesneler ekle:
-  - [ ] Kapılar (kilitli/açık)
-  - [ ] Anahtarlar
-  - [ ] Quiz noktaları (özel objeler)
-  - [ ] Checkpoint noktaları
-- [ ] Seviye haritası tasarla (3-5 alan/oda)
-- [ ] Arka plan grafikleri
+### 2. Zemin ve Kaldırım Sistemi
 
-### 4. Quiz ve Diyalog Sistemi
-- [ ] Diyalog kutusu UI tasarımı
-  - [ ] Konuşma balonu stili
-  - [ ] Karakter portre alanı
-  - [ ] Metin gösterim alanı
-  - [ ] Cevap butonları
-- [ ] Etkileşim sistemi
-  - [ ] Nesneye yaklaşma algılama
-  - [ ] "E tuşuna bas" göstergesi
-  - [ ] Diyalog açma/kapama
-- [ ] Soru-cevap mekanizması
-  - [ ] Soru havuzu yapısı
-  - [ ] Çoktan seçmeli cevaplar (2-3 şık)
-  - [ ] Doğru/yanlış kontrolü
-  - [ ] Cevap sonrası feedback
-- [ ] İpucu sistemi (Kirpi'den yardım)
+#### Kaldırım Zemin
+- Basit düz gri kaldırım çizimi (#C0C0C0)
+- Üst ve alt kenarlarda hafif gölge efektleri
+- Karakterler kaldırım üzerinde duruyor (groundLevel = 550)
 
-### 5. Oyun Mekaniği ve Akış
-- [ ] Seviye ilerlemesi
-  - [ ] Doğru cevap = kapı açılır/engel kalkar
-  - [ ] Yanlış cevap = tekrar deneme/ipucu
-- [ ] Ilerleme takibi
-  - [ ] Kaç soru doğru cevaplanmış
-  - [ ] Hangi bölgeler keşfedilmiş
-- [ ] Checkpoint sistemi
-- [ ] Oyun sonu ekranı
-  - [ ] Kutlama animasyonu
-  - [ ] Özel mesaj gösterimi
-  - [ ] "Tekrar oyna" butonu
+#### Pavement Tile Sorunu Çözüldü
+- Pavement tile (buildings/Normal/pavement.png) içindeki gri duvarlar sorunu
+- Tile kaldırıldı, basit kod çizimi kullanılıyor
 
-### 6. Görsel ve Ses Tasarımı
-- [ ] Karakter çizimleri (basit pixel art veya geometrik şekiller)
-- [ ] Platform ve nesne grafikleri
-- [ ] Arka plan tasarımı (romantik/doğal tema)
-- [ ] UI elemanları
-  - [ ] Diyalog kutusu
-  - [ ] Butonlar
-  - [ ] İkonlar
-- [ ] Opsiyonel: Basit müzik/ses efektleri
-  - [ ] Zıplama sesi
-  - [ ] Doğru cevap sesi
-  - [ ] Yanlış cevap sesi
-  - [ ] Arka plan müziği
+### 3. Diyalog Sistemi
 
-### 7. İçerik ve Kişiselleştirme
-- [ ] Sorular ve cevaplar (kullanıcıdan alınacak):
-  - [ ] Soru 1: [Kullanıcı dolduracak]
-  - [ ] Soru 2: [Kullanıcı dolduracak]
-  - [ ] Soru 3: [Kullanıcı dolduracak]
-  - [ ] Soru 4: [Kullanıcı dolduracak]
-  - [ ] Soru 5: [Kullanıcı dolduracak]
-  - [ ] Soru 6: [Kullanıcı dolduracak]
-- [ ] Kirpi diyalogları ve ipuçları
-- [ ] Oyun sonu mesajı (doğum günü mesajı)
-- [ ] Özel tarih/isim ekleme
+#### Açılış Diyaloğu
+- Kirpi karakteri rakun'a doğru yürüyor
+- Etkileşim mesafesine geldiğinde otomatik diyalog açılıyor
+- "Hazırım! 💕" butonu ile diyalog kapatılıyor
 
-### 8. Optimizasyon ve Test
-- [ ] Farklı ekran boyutlarında test
-- [ ] Mobil uyumluluk (opsiyonel)
-- [ ] Performans optimizasyonu
-- [ ] Bug tespiti ve düzeltme
-- [ ] Zorluk dengesi ayarlama
+#### Diyalog Pencere İyileştirmeleri
+- Text wrapping (metin sarma) fonksiyonu eklendi
+- Çok satırlı metin desteği
+- Dinamik yükseklik ayarlaması
+- Dialog.text ve dialog.text2 desteği
 
-### 9. Son Rötuşlar
-- [ ] Geçiş animasyonları
-- [ ] Parçacık efektleri (kalpler, yıldızlar)
-- [ ] Loading ekranı
-- [ ] Başlangıç menüsü
-- [ ] Kontroller açıklaması (WASD/Arrow keys, E tuşu)
+#### Konuşma Baloncuğu
+- Kirpi'nin kafasının üstünde küçük konuşma baloncuğu
+- "Bir kahve mi içsek acaba?" metni
+- Sadece gameplay sahnesinde ve belirli durumlarda görünüyor
+- Beyaz arka plan, siyah kenarlık, yuvarlatılmış köşeler
 
----
+### 4. Kirpi (Hedgehog) Hareket Sistemi
 
-## 🎨 Tasarım Kararları (Kullanıcıdan Bekleyen)
+#### Açılış Sahnesi (Opening)
+- Kirpi otomatik olarak rakun'a doğru yürüyor
+- Rakunun soluna veya sağına göre pozisyon alıyor
+- Etkileşim mesafesinde duruyor ve diyalog açıyor
 
-### Sorular
-```
-SORU 1:
-- Soru metni: ?
-- Şık A: ?
-- Şık B: ?
-- Şık C: ?
-- Doğru cevap: ?
+#### Gameplay Sahnesi
+- **Caffè Nero'ya Gitme**: "Hazırım" butonuna tıklandığında kirpi Caffè Nero binasına doğru hareket ediyor
+- **Rakun Durduğunda**: 
+  - Kirpi ekrandan çıkacaksa, ekranın %70'lik pozisyonuna gelip duruyor
+  - Baloncuk gösteriyor ve rakunun hareket etmesini bekliyor
+  - `waitingForPlayer` flag'i ile durum takip ediliyor
+- **Rakun Hareket Ettiğinde**: Kirpi Caffè Nero'ya gitmeye devam ediyor
 
-SORU 2:
-- Soru metni: ?
-- Şık A: ?
-- Şık B: ?
-- Şık C: ?
-- Doğru cevap: ?
+#### Hız Ayarı
+- Rakun hızı: 5 piksel/frame
+- Kirpi hızı: 3.75 piksel/frame (güncellendi)
 
-[Devamı kullanıcı ekleyecek...]
-```
+### 5. Sahne Geçişleri
 
-### Görsel Tercihler
-- [ ] Renk paleti: ?
-- [ ] Grafik stili: (Pixel art / Geometrik / Cartoon)
-- [ ] Tema: (Orman / Bahçe / Fantezi / Modern)
+#### Opening → Gameplay Geçişi
+- "Hazırım" butonuna tıklandığında opening sahnesinden gameplay'e geçiliyor
+- Spotlight ve siyah ekran kayboluyor
+- Normal oyun ekranı (gökyüzü, binalar, karakterler) görünüyor
 
-### Özel Mesajlar
-- [ ] Oyun başlangıç mesajı: ?
-- [ ] Oyun sonu mesajı: ?
-- [ ] Doğum günü mesajı: ?
+### 6. Kamera Sistemi
 
----
+- Kamera rakun'u takip ediyor
+- X ekseninde takip (Y ekseni sabit)
+- Kamera sınırları (harita dışına çıkmıyor)
 
-## 🛠️ Teknik Detaylar
+### 7. Arka Plan Elemanları
 
-### Teknoloji Stack
-- HTML5 Canvas
-- Vanilla JavaScript (ES6+)
-- CSS3 (styling için)
+#### Gökyüzü Gradient
+- 3 renk geçişi: Açık mavi (#B0E0E6) → Gökyüzü mavisi (#87CEEB) → Çok açık mavi (#E0F6FF)
+- Zengin görünüm
 
-### Temel Sınıflar
-```
-- Game (ana oyun yöneticisi)
-- Player (Rakun karakteri)
-- NPC (Kirpi karakteri)
-- Platform (zemin ve platformlar)
-- InteractiveObject (quiz nesneleri, kapılar, vb.)
-- DialogSystem (diyalog yönetimi)
-- QuizManager (soru-cevap sistemi)
-- CollisionDetector (çarpışma kontrolü)
-- InputHandler (klavye kontrolleri)
-```
+#### Bulutlar
+- Paralax scrolling efektli bulutlar
+- Buildings klasöründen bulut sprite'ları yüklendi
+- 6 farklı bulut pozisyonu
 
-### Dosya Yapısı
-```
-/game
-  ├── index.html
-  ├── styles.css
-  ├── game.js (ana oyun mantığı)
-  ├── player.js (karakter kontrolleri)
-  ├── dialog.js (diyalog sistemi)
-  ├── quiz.js (soru-cevap)
-  └── assets/
-      ├── sprites/ (karakter ve nesne görselleri)
-      └── sounds/ (opsiyonel sesler)
-```
+### 8. Animasyon Sistemi
 
----
+#### Rakun Animasyonları
+- Idle (durma) animasyonu - 11 frame
+- Walk (yürüme) animasyonu - 11 frame
+- Jump (zıplama) animasyonu - 1 frame
+
+#### Kirpi Animasyonları
+- Idle sprite sheet animasyonu
+- Move sprite sheet animasyonu
+- Sprite sheet'lerden frame'ler çıkarılıyor
+
+### 9. Teknik İyileştirmeler
+
+#### Sprite Yükleme
+- Tüm bina sprite'ları için hata yakalama
+- Sprite yüklenme kontrolü (complete ve width > 0)
+- Debug console log'ları
+
+#### Performans
+- Sadece ekranda görünen binaları çizme
+- Gereksiz hesaplamaları önleme
+
+#### Bina Pozisyon Hesaplama
+- `calculateBuildingPositions()` fonksiyonu ile başlangıçta bir kez hesaplama
+- Caffè Nero binasının pozisyonu otomatik kaydediliyor
+
+## 🔄 Devam Eden / İyileştirme Gereken Özellikler
+
+- [ ] Kirpi'nin ekran pozisyonuna gelme mantığının test edilmesi ve iyileştirilmesi
+- [ ] Diyalog baloncuğunun daha smooth görünmesi için animasyon eklenmesi
+- [ ] Bina sprite'larının yüklenme durumunun daha iyi yönetilmesi
 
 ## 📝 Notlar
-- Oyun tarayıcıda çalışacak (HTML5)
-- Tek dosyada da geliştirilebilir (hızlı prototip için)
-- Grafikleri başta basit tutup sonra geliştirilebilir
-- İlk versiyon 2-3 soru ile test edilmeli
-- Kullanıcı feedback'i alındıktan sonra genişletilebilir
 
----
+- Buildings klasörü git'e eklendi
+- Tüm görsel iyileştirmeler commit edildi
+- Caffè Nero branding özelliği tamamlandı
+- Kirpi hareket sistemi geliştirildi ve optimize edildi
+- Kirpi hızı 2'den 3.75'ye güncellendi
 
-## 🚀 Öncelikli Görevler (İlk Sprint)
-1. Temel karakter hareketi ve platformer mekaniği
-2. Basit bir seviye tasarımı (1 oda)
-3. Tek bir etkileşimli nesne ve diyalog sistemi
-4. 1-2 test sorusu
-5. Temel görsel tasarım
+## 🎯 Son Değişiklikler (En Son Commit'ten Önce)
 
----
+### Kirpi Hareket Sistemi İyileştirmeleri
+- `waitingForPlayer` flag'i eklendi (rakunun hareket etmesini bekliyor mu?)
+- `screenTargetX` eklendi (ekran pozisyon hedefi)
+- Rakun durduğunda kirpi ekranın %70'lik pozisyonuna gelip duruyor
+- Rakun hareket ettiğinde kirpi Caffè Nero'ya gitmeye devam ediyor
+- Ekran hedefi her frame güncelleniyor (kamera hareket edebilir)
 
-## ✅ Başarı Kriterleri
-- [ ] Rakun karakteri sorunsuz hareket ediyor
-- [ ] Nesnelerle etkileşim çalışıyor
-- [ ] Sorular gösteriliyor ve cevaplanabiliyor
-- [ ] Doğru cevaplarla ilerleme sağlanıyor
-- [ ] Kirpi karakteri uygun yerlerde görünüyor
-- [ ] Oyun baştan sona oynanabiliyor
-- [ ] Özel mesajlar ve isimler doğru yerleştirilimiş
-- [ ] Oyun romantik ve eğlenceli atmosfere sahip
+### Hız Ayarı
+- Kirpi hızı 2 piksel/frame → 3.75 piksel/frame olarak güncellendi

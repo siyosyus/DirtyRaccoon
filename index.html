@@ -345,10 +345,67 @@
             spriteYOffset: 15,  // Sprite'ı aşağı kaydır (yarıya indirildi)
             spriteHeightExtension: 15,  // Sprite yüksekliğini artır (yarıya indirildi)
             type: 'helper',
-            speed: 2,  // Yürüme hızı
+            speed: 3.75,  // Yürüme hızı
             isMoving: false,  // Hareket ediyor mu?
-            targetX: null  // Hedef X pozisyonu
+            targetX: null,  // Hedef X pozisyonu
+            showSpeechBubble: false,  // Diyalog baloncuğu gösterilsin mi?
+            waitingForPlayer: false,  // Rakunun hareket etmesini bekliyor mu? (ekran pozisyonunda)
+            screenTargetX: null  // Ekran pozisyon hedefi (rakun durduğunda)
         };
+        
+        // Caffè Nero binasının pozisyonu (başlangıçta hesaplanacak)
+        let caffeNeroX = null;
+        let caffeNeroWidth = null;
+        
+        // Bina pozisyonlarını hesapla (sprite'lar yüklendikten sonra)
+        function calculateBuildingPositions() {
+            if (caffeNeroX !== null) return; // Zaten hesaplandı
+            const smallBuildings = [
+                'smallCandyShop', 'smallBar', 'smallFlorist', 'smallElectronicsShop',
+                'smallGunShop', 'smallJewelleryShop', 'smallIceCreamShop', 'smallBank'
+            ];
+            
+            const largeBuildings = [
+                'largeBank', 'largeBar', 'largeCandyShop', 'largeElectronicsShop',
+                'largeFlorist', 'largeGroceryShop', 'largeGunShop', 'largeIceCreamShop',
+                'largeJewelleryShop', 'normalBlue', 'normalGreen', 'normalRed',
+                'normalPurple', 'normalPink', 'normalLightBlue', 'blankShopBlack',
+                'blankShopBlue', 'blankShopBrown', 'blankShopPurple', 'blankShopRed',
+                'blankShopYellow', 'blankShopYellow2', 'blankShop2D', 'mutedBlue',
+                'mutedBrown', 'mutedGrayscale', 'mutedGreen', 'mutedPurple'
+            ];
+            
+            let currentX = 50;
+            const minSpacing = 20;
+            let smallIndex = 0;
+            let largeIndex = 0;
+            
+            for (let i = 0; i < 30; i++) {
+                const patternPos = i % 3;
+                let spriteKey;
+                
+                if (patternPos === 0 || patternPos === 1) {
+                    spriteKey = smallBuildings[smallIndex % smallBuildings.length];
+                    smallIndex++;
+                } else {
+                    spriteKey = largeBuildings[largeIndex % largeBuildings.length];
+                    
+                    // İlk largeBar binasını bul
+                    if (caffeNeroX === null && spriteKey === 'largeBar') {
+                        const buildingSprite = sprites.buildings[spriteKey];
+                        const buildingWidth = (buildingSprite && buildingSprite.complete) ? buildingSprite.width : 180;
+                        caffeNeroX = currentX;
+                        caffeNeroWidth = buildingWidth;
+                    }
+                    
+                    largeIndex++;
+                }
+                
+                const buildingSprite = sprites.buildings[spriteKey];
+                const buildingWidth = (buildingSprite && buildingSprite.complete) ? buildingSprite.width : 180;
+                currentX += buildingWidth + minSpacing;
+            }
+        }
 
         // Platforms (genişletilmiş harita - 15 soru için)
         const platforms = [
@@ -557,9 +614,30 @@
             if (dialog.isHedgehogDialog) {
                 closeDialog();
 
-                // Açılış dialogu kapandıysa, gameplay'e geç
+                // Açılış dialogu kapandıysa, gameplay'e geç ve kirpi Caffè Nero'ya gitsin
                 if (game.sceneState === 'opening') {
                     game.sceneState = 'gameplay';
+                    
+                    // Baloncuğu kapat (yeni gameplay başlıyor)
+                    hedgehog.showSpeechBubble = false;
+                    
+                    // Caffè Nero pozisyonunu hesapla (eğer henüz hesaplanmadıysa)
+                    if (caffeNeroX === null) {
+                        calculateBuildingPositions();
+                    }
+                    
+                    // Kirpi Caffè Nero binasına doğru yürüsün
+                    if (caffeNeroX !== null && caffeNeroWidth !== null) {
+                        // Binanın önüne git (bina merkezinden biraz önce)
+                        hedgehog.targetX = caffeNeroX + (caffeNeroWidth / 2) - hedgehog.width - 30;
+                        hedgehog.isMoving = true;
+                        console.log('Hedgehog target set:', hedgehog.targetX, 'CaffeNeroX:', caffeNeroX);
+                    } else {
+                        console.log('CaffeNeroX is null, cannot set target. Will retry in updateHedgehog.');
+                    }
+                    
+                    // İlk frame'de baloncuk gösterilmesini engelle (kirpi önce hedefe gitmeli)
+                    // Not: updateHedgehog içinde rakun duruyorsa kontrol edilecek
                 }
                 return;
             }
@@ -741,6 +819,178 @@
 
         // Update hedgehog (kirpi hareketi ve açılış sahnesi)
         function updateHedgehog() {
+            // Gameplay sahnesi: Kirpi Caffè Nero binasına doğru yürür
+            if (game.sceneState === 'gameplay') {
+                // Rakunun hareket etmediğini kontrol et
+                const playerIsStationary = Math.abs(player.velocityX) < 0.5;
+                
+                // Eğer rakunun hareket etmesini bekliyorsa ve rakun hareket etti, ekran hedefini iptal et
+                if (hedgehog.waitingForPlayer && !playerIsStationary) {
+                    hedgehog.waitingForPlayer = false;
+                    hedgehog.screenTargetX = null;
+                    hedgehog.showSpeechBubble = false;
+                    console.log('Player started moving, resuming Caffè Nero target');
+                }
+                
+                // Eğer ekran hedefinde bekliyorsa, ekran hedefinde kal
+                if (hedgehog.waitingForPlayer && hedgehog.screenTargetX !== null) {
+                    // Ekran pozisyonunu her frame güncelle (kamera hareket edebilir)
+                    const targetScreenX = canvas.width * 0.7;
+                    const targetWorldX = camera.x + targetScreenX;
+                    hedgehog.screenTargetX = targetWorldX; // Hedefi güncelle
+                    
+                    const distanceToScreenTarget = Math.abs(hedgehog.x - targetWorldX);
+                    console.log('Waiting for player - current:', hedgehog.x, 'target:', targetWorldX, 'distance:', distanceToScreenTarget);
+                    
+                    if (distanceToScreenTarget > 10) {
+                        // Ekran hedefine doğru hareket et
+                        hedgehog.isMoving = true;
+                        if (hedgehog.x < targetWorldX) {
+                            hedgehog.x += hedgehog.speed;
+                        } else {
+                            hedgehog.x -= hedgehog.speed;
+                        }
+                        console.log('Moving to screen target:', hedgehog.x);
+                    } else {
+                        // Ekran hedefinde dur
+                        hedgehog.isMoving = false;
+                        hedgehog.showSpeechBubble = true;
+                        console.log('Reached screen target, showing bubble');
+                    }
+                    return;
+                }
+                
+                // Eğer hedef yoksa ve Caffè Nero pozisyonu biliniyorsa, hedefi ayarla (öncelik)
+                if (hedgehog.targetX === null && caffeNeroX !== null && caffeNeroWidth !== null && !hedgehog.showSpeechBubble && !hedgehog.waitingForPlayer) {
+                    hedgehog.targetX = caffeNeroX + (caffeNeroWidth / 2) - hedgehog.width - 30;
+                    hedgehog.isMoving = true;
+                    hedgehog.showSpeechBubble = false; // Henüz baloncuk gösterme
+                    console.log('Hedgehog target set in updateHedgehog:', hedgehog.targetX);
+                }
+                
+                // Caffè Nero binasına gitme mantığı (öncelikli - eğer hedef varsa)
+                if (hedgehog.targetX !== null && hedgehog.isMoving && !hedgehog.showSpeechBubble) {
+                    const hedgehogCenterX = hedgehog.x + hedgehog.width / 2;
+                    const targetCenterX = hedgehog.targetX + hedgehog.width / 2;
+                    const distance = Math.abs(hedgehogCenterX - targetCenterX);
+                    
+                    // Rakun hareket etmiyorsa ve kirpi ekrandan çıkacaksa, dur ve ekranda görünür bir noktaya gel
+                    if (playerIsStationary) {
+                        const hedgehogScreenX = hedgehog.x - camera.x;
+                        const hedgehogIsVisible = hedgehogScreenX >= 0 && hedgehogScreenX <= canvas.width - hedgehog.width;
+                        
+                        // Gelecekteki pozisyonu kontrol et
+                        let nextX = hedgehog.x;
+                        if (hedgehog.x < hedgehog.targetX) {
+                            nextX = hedgehog.x + hedgehog.speed;
+                        } else {
+                            nextX = hedgehog.x - hedgehog.speed;
+                        }
+                        const nextScreenX = nextX - camera.x;
+                        const willBeVisible = nextScreenX >= 0 && nextScreenX <= canvas.width - hedgehog.width;
+                        
+                        // Eğer kirpi ekrandan çıkacaksa veya çıkmışsa, dur ve ekranda görünür bir noktaya gel
+                        // Basit kontrol: gelecekteki pozisyon ekranın %80'inden sağda mı? Veya ekrandan çıkacak mı?
+                        const threshold = canvas.width * 0.8; // %80 eşiği
+                        const willBePastThreshold = nextScreenX > threshold || nextScreenX + hedgehog.width > canvas.width;
+                        
+                        if (willBePastThreshold) {
+                            // Ekranın %70'lik kısmına gel
+                            const targetScreenX = canvas.width * 0.7;
+                            const targetWorldX = camera.x + targetScreenX;
+                            
+                            // Ekran hedefini kaydet
+                            hedgehog.screenTargetX = targetWorldX;
+                            hedgehog.waitingForPlayer = true;
+                            
+                            const distanceToTarget = Math.abs(hedgehog.x - targetWorldX);
+                            console.log('Hedgehog check - current:', hedgehog.x, 'target:', targetWorldX, 'distance:', distanceToTarget, 'camera.x:', camera.x);
+                            
+                            if (distanceToTarget > 10) {
+                                // Hedefe doğru hareket et
+                                hedgehog.isMoving = true;
+                                // Caffè Nero hedefini geçici olarak iptal et
+                                hedgehog.targetX = null;
+                                
+                                if (hedgehog.x < targetWorldX) {
+                                    hedgehog.x += hedgehog.speed;
+                                } else {
+                                    hedgehog.x -= hedgehog.speed;
+                                }
+                                
+                                // Eğer hedefe yaklaşıldıysa, dur ve baloncuk göster
+                                const newDistance = Math.abs(hedgehog.x - targetWorldX);
+                                if (newDistance <= 10) {
+                                    hedgehog.isMoving = false;
+                                    hedgehog.showSpeechBubble = true;
+                                    console.log('Hedgehog reached screen position, showing bubble');
+                                } else {
+                                    console.log('Hedgehog moving to screen position 70%:', hedgehog.x, targetWorldX);
+                                }
+                            } else {
+                                // Hedefe ulaşıldı, dur ve baloncuk göster
+                                hedgehog.isMoving = false;
+                                hedgehog.showSpeechBubble = true;
+                                hedgehog.targetX = null; // Caffè Nero hedefini iptal et
+                                console.log('Hedgehog reached screen position, showing bubble');
+                            }
+                            return;
+                        }
+                        // Eğer ekranda görünürse ve ekrandan çıkmayacaksa, Caffè Nero'ya gitmeye devam et
+                    }
+                    
+                    // Hedefe ulaşıldı mı?
+                    if (distance < 10) {
+                        hedgehog.isMoving = false;
+                        hedgehog.showSpeechBubble = true; // Diyalog baloncuğunu göster
+                    } else {
+                        // Hedefe doğru hareket et
+                        if (hedgehog.x < hedgehog.targetX) {
+                            hedgehog.x += hedgehog.speed;
+                        } else {
+                            hedgehog.x -= hedgehog.speed;
+                        }
+                    }
+                    return;
+                }
+                
+                // Eğer Caffè Nero hedefi yoksa veya tamamlandıysa ve rakun duruyorsa, ekranda görünür bir noktaya gel
+                // Bu sadece Caffè Nero hedefi olmadığında çalışmalı (henüz hedef verilmemişse)
+                if (playerIsStationary && hedgehog.targetX === null && hedgehog.showSpeechBubble === false) {
+                    const hedgehogScreenX = hedgehog.x - camera.x;
+                    const hedgehogIsVisible = hedgehogScreenX >= 0 && hedgehogScreenX <= canvas.width - hedgehog.width;
+                    
+                    // Kirpi ekranda görünür mü ve uygun pozisyonda mı?
+                    if (!hedgehogIsVisible || hedgehogScreenX > canvas.width * 0.7) {
+                        // Ekranın %70'lik kısmına gel
+                        const targetScreenX = canvas.width * 0.7;
+                        const targetWorldX = camera.x + targetScreenX;
+                        
+                        if (Math.abs(hedgehog.x - targetWorldX) > 10) {
+                            // Hedefe doğru hareket et
+                            hedgehog.isMoving = true;
+                            if (hedgehog.x < targetWorldX) {
+                                hedgehog.x += hedgehog.speed;
+                            } else {
+                                hedgehog.x -= hedgehog.speed;
+                            }
+                        } else {
+                            // Hedefe ulaşıldı, dur ve baloncuk göster
+                            hedgehog.isMoving = false;
+                            hedgehog.showSpeechBubble = true;
+                        }
+                    } else {
+                        // Ekranda görünür ve uygun pozisyonda, dur ve baloncuk göster
+                        hedgehog.isMoving = false;
+                        hedgehog.showSpeechBubble = true;
+                    }
+                    return;
+                }
+                
+                // Eğer buraya geldiyse, başka bir şey yapılmasına gerek yok
+                return;
+            }
+            
             // Açılış sahnesi: Kirpi otomatik olarak rakun'a doğru yürür
             if (game.sceneState === 'opening') {
                 // Merkez noktalarını hesapla
@@ -899,6 +1149,47 @@
             // ctx.strokeStyle = 'blue';
             // ctx.strokeRect(screenX, screenY, hedgehog.width, hedgehog.height);
 
+            // Diyalog baloncuğu çiz (gameplay sahnesinde ve gösterilmesi gerekiyorsa)
+            if (game.sceneState === 'gameplay' && hedgehog.showSpeechBubble) {
+                const bubbleX = screenX + hedgehog.width / 2;
+                const bubbleY = screenY - 50; // Kirpi'nin kafasının üstünde
+                const bubbleWidth = 180;
+                const bubbleHeight = 50;
+                const bubbleRadius = 10;
+                const text = "Bir kahve mi içsek acaba?";
+                
+                ctx.save();
+                
+                // Baloncuğu çiz (yuvarlatılmış dikdörtgen)
+                ctx.fillStyle = '#FFFFFF';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                
+                // Baloncuk gövdesi
+                ctx.beginPath();
+                ctx.roundRect(bubbleX - bubbleWidth / 2, bubbleY - bubbleHeight, bubbleWidth, bubbleHeight, bubbleRadius);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Baloncuk ucunu çiz (kirpi'nin kafasına işaret eden)
+                ctx.beginPath();
+                ctx.moveTo(bubbleX - 15, bubbleY);
+                ctx.lineTo(bubbleX, bubbleY - 10);
+                ctx.lineTo(bubbleX + 15, bubbleY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Metin çiz
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, bubbleX, bubbleY - bubbleHeight / 2);
+                
+                ctx.restore();
+            }
+
             // Show "E" prompt if player is near - merkez bazlı kontrol
             const playerCenterX = player.x + player.width / 2;
             const playerCenterY = player.y + player.height / 2;
@@ -908,7 +1199,7 @@
             const distanceX = Math.abs(playerCenterX - hedgehogCenterX);
             const distanceY = Math.abs(playerCenterY - hedgehogCenterY);
 
-            if (distanceX < 80 && distanceY < 80) {
+            if (distanceX < 80 && distanceY < 80 && !hedgehog.showSpeechBubble) {
                 ctx.fillStyle = 'white';
                 ctx.strokeStyle = 'black';
                 ctx.lineWidth = 3;
@@ -1001,10 +1292,14 @@
             let largeIndex = 0;
             
             // 30 bina için pattern oluştur
+            let firstLargeDrinkShopIndex = -1; // İlk büyük içecek satan binanın indeksi
+            
             for (let i = 0; i < 30; i++) {
                 const patternPos = i % 3; // 0, 1, 2 (2 küçük, 1 büyük)
                 
                 let spriteKey;
+                let isLargeDrinkShop = false;
+                
                 if (patternPos === 0 || patternPos === 1) {
                     // İki küçük bina
                     spriteKey = smallBuildings[smallIndex % smallBuildings.length];
@@ -1012,6 +1307,13 @@
                 } else {
                     // Bir büyük bina
                     spriteKey = largeBuildings[largeIndex % largeBuildings.length];
+                    
+                    // İlk büyük içecek satan bina (largeBar) bulunca işaretle
+                    if (firstLargeDrinkShopIndex === -1 && spriteKey === 'largeBar') {
+                        firstLargeDrinkShopIndex = i;
+                        isLargeDrinkShop = true;
+                    }
+                    
                     largeIndex++;
                 }
                 
@@ -1019,7 +1321,20 @@
                 const buildingSprite = sprites.buildings[spriteKey];
                 const buildingWidth = (buildingSprite && buildingSprite.complete) ? buildingSprite.width : 180;
                 
-                buildings.push({ x: currentX, spriteKey: spriteKey });
+                buildings.push({ 
+                    x: currentX, 
+                    spriteKey: spriteKey,
+                    isCaffeNero: isLargeDrinkShop // Caffè Nero işareti
+                });
+                
+                // Caffè Nero binasının pozisyonunu kaydet (sprite yüklendiyse ve henüz set edilmediyse)
+                if (isLargeDrinkShop && caffeNeroX === null) {
+                    const buildingSprite = sprites.buildings[spriteKey];
+                    if (buildingSprite && buildingSprite.complete && buildingSprite.width > 0) {
+                        caffeNeroX = currentX;
+                        caffeNeroWidth = buildingSprite.width;
+                    }
+                }
                 
                 // Bir sonraki binanın X pozisyonu: mevcut bina genişliği + minimum boşluk
                 currentX += buildingWidth + minSpacing;
@@ -1048,7 +1363,8 @@
                         screenX: screenX,
                         screenY: screenY,
                         width: buildingWidth,
-                        height: buildingHeight
+                        height: buildingHeight,
+                        isCaffeNero: building.isCaffeNero || false // Caffè Nero işareti
                     });
                 }
             });
@@ -1067,6 +1383,38 @@
                 
                 // Bina sprite'ını çiz
                 ctx.drawImage(building.sprite, building.screenX, building.screenY, building.width, building.height);
+                
+                // Caffè Nero yazısını çiz (tente üzerine)
+                if (building.isCaffeNero) {
+                    // Tente genellikle binanın üst 1/4'lük kısmında, yaklaşık olarak
+                    const tentHeight = building.height * 0.25; // Tente yüksekliği (binanın %25'i)
+                    const tentY = building.screenY; // Tente en üstte
+                    
+                    // Metin stilleri
+                    ctx.save();
+                    ctx.font = 'bold 32px Arial'; // Yazı boyutu artırıldı (24'ten 32'ye)
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // Beyaz outline efekti için
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 5;
+                    ctx.lineJoin = 'round';
+                    
+                    // Metin rengi (mavi)
+                    ctx.fillStyle = '#0066CC';
+                    
+                    // Metin pozisyonu (tentenin ortası, biraz aşağıya kaydırıldı)
+                    const textX = building.screenX + building.width / 2;
+                    const textY = tentY + tentHeight / 2 + 8; // 8 piksel aşağıya kaydırıldı
+                    
+                    // Outline çiz
+                    ctx.strokeText('Caffè Nero', textX, textY);
+                    // Metin çiz
+                    ctx.fillText('Caffè Nero', textX, textY);
+                    
+                    ctx.restore();
+                }
             });
         }
 
