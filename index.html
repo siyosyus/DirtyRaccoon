@@ -330,10 +330,10 @@
             gravity: 0.6,
             friction: 0.8,
             mapWidth: 5500,  // Çok geniş harita (15 soru için)
-            state: 'playing',  // 'intro', 'verification', 'playing', 'finished' - TEST: direkt 'playing'
+            state: 'intro',  // 'intro', 'verification', 'playing', 'finished'
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
-            sceneState: 'onIsland',  // 'opening', 'gameplay', 'island', 'onIsland' - TEST: direkt 'onIsland'
+            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland'
             openingDialogShown: false,  // Açılış dialogu gösterildi mi?
             caffeNeroDialogShown: false,  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
             dockDialogShown: false,  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
@@ -538,28 +538,35 @@
             const playerCenterY = player.y + player.height / 2;
 
             // Check Caffè Nero binası etkileşimi (öncelikli)
+            // Caffè Nero pozisyonunu hesapla (eğer henüz hesaplanmadıysa)
+            if (caffeNeroX === null && game.sceneState === 'gameplay') {
+                calculateBuildingPositions();
+            }
+            
+            // Check Caffè Nero binası etkileşimi (E tuşu ile)
             if (caffeNeroX !== null && caffeNeroWidth !== null && game.sceneState === 'gameplay') {
                 // Eğer diyalog daha önce açıldıysa tekrar açma
-                if (game.caffeNeroDialogShown) {
-                    // Caffè Nero kontrolünü atla, iskele kontrolüne geç
-                } else {
+                if (!game.caffeNeroDialogShown) {
                     // Bina merkezi ve pozisyonu
                     const buildingCenterX = caffeNeroX + caffeNeroWidth / 2;
-                    const buildingY = 550; // Ground level
+                    const buildingY = GROUND_LEVEL; // Ground level
                     
-                    // Rakun binanın önünde mi? (X pozisyonu kontrolü)
-                    const distanceX = Math.abs(playerCenterX - buildingCenterX);
-                    const distanceToBuilding = distanceX;
+                    // Bina başlangıç ve bitiş pozisyonu kontrolü
+                    const buildingStartX = caffeNeroX;
+                    const buildingEndX = caffeNeroX + caffeNeroWidth;
+                    const isNearBuilding = (playerCenterX >= buildingStartX - 100 && playerCenterX <= buildingEndX + 100);
+                    const playerOnGround = player.y + player.height >= buildingY - 10;
                     
-                    // Etkileşim mesafesi: binanın önünde, merkezden 100px içinde
-                    if (distanceToBuilding < 100 && player.y + player.height >= buildingY - 10) {
+                    // Eğer oyuncu binanın yakınındaysa ve E tuşuna basıldıysa diyalog aç
+                    // Not: E tuşu kontrolü keydown event handler'da yapılıyor, burada sadece pozisyon kontrolü
+                    if (isNearBuilding && playerOnGround && (keys['e'] || keys['E'])) {
                         openCaffeNeroDialog();
                 return;
                     }
                 }
             }
 
-            // Check İskele etkileşimi
+            // Check İskele etkileşimi (E tuşu ile)
             // İskele pozisyonunu hesapla (eğer henüz hesaplanmadıysa)
             if (dockX === null && game.sceneState === 'gameplay') {
                 calculateBuildingPositions();
@@ -573,11 +580,7 @@
 
                 // İskele merkezi ve pozisyonu
                 const dockCenterX = dockX + dockWidth / 2;
-                const dockY = 550; // Ground level
-                
-                // Rakun iskelenin önünde mi? (X pozisyonu kontrolü)
-                const distanceX = Math.abs(playerCenterX - dockCenterX);
-                const distanceToDock = distanceX;
+                const dockY = GROUND_LEVEL; // Ground level
                 
                 // İskele başlangıcı ve bitişi kontrolü
                 const dockStartX = dockX;
@@ -587,8 +590,8 @@
                 const isNearDock = (playerCenterX >= dockStartX - 150 && playerCenterX <= dockEndX + 150);
                 const playerOnGround = player.y + player.height >= dockY - 10;
                 
-                // Etkileşim mesafesi: iskelenin önünde, merkezden 150px içinde veya iskele alanında
-                if (isNearDock && playerOnGround) {
+                // Eğer oyuncu iskelenin yakınındaysa ve E tuşuna basıldıysa diyalog aç
+                if (isNearDock && playerOnGround && (keys['e'] || keys['E'])) {
                     openDockDialog();
                     return;
                 }
@@ -642,10 +645,10 @@
         function openCaffeNeroDialog() {
             dialog.isOpen = true;
             dialog.isHedgehogDialog = false;
-            dialog.text = 'Bir Orta boy Latte bir tane de filtre kahve alabilir miyiz?';
-            dialog.text2 = '';
-            dialog.answers = ['Tabii ki! ☕'];
-            dialog.currentObject = null;
+            dialog.text = '15 Aralık 2023';
+            dialog.text2 = 'Hosgeldiniz.Ne sipariş vermek istersiniz?';
+            dialog.answers = ['Bir Orta boy Latte bir tane de filtre kahve alabilir miyiz?'];
+            dialog.currentObject = 'caffeNero'; // Caffè Nero diyaloğu için identifier
         }
 
         // Open Dock dialog (İskele diyaloğu)
@@ -655,7 +658,7 @@
             dialog.text = 'Büyükada ilk tatilimizi yapmaya gidiyoruz. Çok ilginç değil mi? Ilk defa bugün görüşüyoruz ama sanki yıllardır birbirimizi tanıyor gibiyiz.';
             dialog.text2 = '';
             dialog.answers = ['Evet, gerçekten! 💕'];
-            dialog.currentObject = null;
+            dialog.currentObject = 'dock'; // İskele diyaloğu için identifier
         }
 
         // Open Hotel dialog (Otel diyaloğu)
@@ -793,7 +796,7 @@
             }
 
             // Caffè Nero diyaloğu ise sadece kapat ve tekrar açılmaması için flag'i set et
-            if (!dialog.isHedgehogDialog && dialog.currentObject === null && dialog.text.includes('Latte')) {
+            if (!dialog.isHedgehogDialog && dialog.currentObject === 'caffeNero') {
                 game.caffeNeroDialogShown = true; // Diyalog bir kez açıldı, tekrar açılmasın
                 closeDialog();
                 
@@ -821,9 +824,9 @@
             }
 
             // İskele diyaloğu ise sadece kapat ve tekrar açılmaması için flag'i set et
-            if (!dialog.isHedgehogDialog && dialog.currentObject === null && dialog.text.includes('Büyükada')) {
+            if (!dialog.isHedgehogDialog && dialog.currentObject === 'dock') {
                 game.dockDialogShown = true; // Diyalog bir kez açıldı, tekrar açılmasın
-            closeDialog();
+                closeDialog();
                 // Yeni sahneye geç: Ada sahnesi
                 game.sceneState = 'island';
                 // Tekne animasyonunu başlat
@@ -2043,21 +2046,26 @@
 
             // Show "E" prompt for dock if player is near
             if (game.sceneState === 'gameplay' && !dialog.isOpen && !game.dockDialogShown && dockX !== null) {
-            const playerCenterX = player.x + player.width / 2;
-                const dockCenterX = dockX + dockWidth / 2;
-                const distanceX = Math.abs(playerCenterX - dockCenterX);
-
-                if (distanceX < 120 && player.y + player.height >= groundLevel - 10) {
+                const playerCenterX = player.x + player.width / 2;
+                const dockStartX = dockX;
+                const dockEndX = dockX + dockWidth;
+                const dockY = GROUND_LEVEL;
+                
+                // Rakun iskelenin önünde veya üzerinde mi? (checkInteraction ile aynı geniş kontrol)
+                const isNearDock = (playerCenterX >= dockStartX - 150 && playerCenterX <= dockEndX + 150);
+                const playerOnGround = player.y + player.height >= dockY - 10;
+                
+                if (isNearDock && playerOnGround) {
                     const dockScreenX = dockX + dockWidth / 2 - camera.x;
-                    const dockScreenY = groundLevel - camera.y - 120; // İskele üstünde, görünür pozisyon
+                    const dockScreenY = GROUND_LEVEL - camera.y - 120; // İskele üstünde, görünür pozisyon
 
                     // Sadece ekranda görünürse çiz
                     if (dockScreenX >= 0 && dockScreenX <= canvas.width && dockScreenY >= 0 && dockScreenY <= canvas.height) {
-                ctx.fillStyle = 'white';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 3;
-                ctx.font = 'bold 20px Arial';
-                ctx.textAlign = 'center';
+                        ctx.fillStyle = 'white';
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 3;
+                        ctx.font = 'bold 20px Arial';
+                        ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.strokeText('E', dockScreenX, dockScreenY);
                         ctx.fillText('E', dockScreenX, dockScreenY);
@@ -3792,9 +3800,7 @@
                 // Açılış sahnesinde oyuncu hareket edemez
                 if (!dialog.isOpen && (game.sceneState === 'gameplay' || game.sceneState === 'onIsland')) {
                     updatePlayer();
-                    if (game.sceneState === 'gameplay') {
-                        checkInteraction();  // Caffè Nero kontrolü (otomatik açılması için)
-                    }
+                    // checkInteraction() artık sadece E tuşuna basıldığında çağrılıyor
                     
                     // Rakun-İskele collision kontrolü (debug)
                     if (dockX !== null) {
@@ -3879,12 +3885,6 @@
         }
 
         // Start game
-        // TEST: Direkt onIsland sahnesinden başla
-        if (game.sceneState === 'onIsland') {
-            initializeOnIslandScene();
-        } else if (game.sceneState === 'island') {
-            initializeBoat();
-        }
         gameLoop();
     </script>
 </body>
