@@ -276,3 +276,30 @@
 - Tekne iskeleye ulaştığında `gameplay` sahnesine geri dönülüyor
 - `updateBoat()` fonksiyonu hem `island` hem `islandReturn` sahneleri için çalışıyor
 - `drawBoat()` fonksiyonu her iki sahne için de tekne çiziyor
+
+### 18. returningHome Sahnesi ve Modern Araba
+
+#### returningHome Sahnesi Oluşturuldu
+- Yeni sahne durumu: `returningHome` (adadan dönüş, eve yürüme sahnesi)
+- Tekne adadan iskeleye döndüğünde `returningHome` sahnesine geçiliyor
+- Sahne yapısı: İskele (sol), deniz, evler (home1, home2, home1, home2, hotel, home1)
+- Hotel oyuncunun evi olarak belirlendi
+- `onIsland` sahnesi ile benzer sokak yapısı (evler, dekorasyonlar, çitler)
+- Dekorasyon sistemi `onIsland` ile aynı mantıkla çalışıyor
+
+#### İskele ve Tekne Düzeni
+- İskele sahnenin solunda, deniz iskele solunda başlıyor
+- Tekne en solda, halat tekne ile iskele arasında, iskele sağda
+- İskele bacakları: Soldan başlayarak sağdan 2. bacağa kadar çiziliyor (sağdan 2. bacak ve en sağdaki çizilmiyor)
+- Yol başlangıcı: İskele sağdan 2. bacağın x koordinatından başlıyor
+- Deniz alanı: Yol başlangıcına kadar uzanıyor
+
+#### Modern Beyaz Araba
+- Hotel önüne modern beyaz araba eklendi
+- Yuvarlatılmış köşeler (quadratic curves ile)
+- Gradient efektleri (gövde, camlar, highlights)
+- Detaylar: Ön farlar, arka lambalar, cam yansımaları, kapı çizgisi
+- Modern alaşım jantlar (5 kollu yıldız deseni)
+- Gölge efektleri ve derinlik
+- Araba boyutu: 160x55 piksel
+- Araba pozisyonu: Hotel merkezinden 80px sola (hotel önünde ortalanmış)
