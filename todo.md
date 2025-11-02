@@ -414,3 +414,29 @@
 - Tüm debug console.log'ları kaldırıldı (production için)
 - Hotel pozisyon hesaplama: Sprite yüklenmediyse varsayılan değerler kullanılıyor
 - Hotel hedef pozisyonu: Sol çit pozisyonuna göre hesaplanıyor
+
+#### Tuna Restaurant Tabelası
+- Son ev (rakı balık yeri) için "Tuna Restaurant" tabelası eklendi
+- Tabela ORCEY Hotel tabelası ile aynı stil ve görsel tasarımda
+- Ahşap görünümlü, pixel-art stili yazı, evin üstünde çatıya bağlı direkle
+- Her zaman görünür, "E" etkileşim sembolü tabelanın üstünde görünür
+
+#### Son Ev Diyalog Sistemi ve Game Over
+- Son ev diyalog penceresinde "ORCEY hotele hoşgeldiniz" metni kaldırıldı
+- Diyalog seçenekleri: "Eveeeeeeeet!!!" ve "O hatayı bir kere daha yapmam ben.."
+- **"Eveeeeeeeet!!!" seçildiğinde**: İki karakter de arabaya doğru otomatik yürüyor
+  - Rakun arabaya doğru yürüyor (`game.playerTargetX` ile hedef pozisyon)
+  - Kirpi arabaya doğru yürüyor (`hedgehog.targetX` ile hedef pozisyon)
+  - Araba pozisyonu `game.datcaCarX`'ten alınıyor (eğer araba geldiyse) veya hesaplanıyor
+  - `game.datcaCharactersMovingToCar` flag'i ile hareket kontrolü
+- **"O hatayı bir kere daha yapmam ben.." seçildiğinde**: Ekranda büyük "GAME OVER" yazısı gösteriliyor
+  - Koyu arka plan (yarı şeffaf siyah)
+  - Kırmızı "GAME OVER" yazısı, beyaz kenarlık ile
+  - `game.gameOver` flag'i ile kontrol ediliyor
+  - `drawGameOver()` fonksiyonu ile çiziliyor
+
+#### Karakter Hareket Sistemi İyileştirmeleri
+- `updatePlayer()` fonksiyonunda Datça sahnesi için arabaya yürüme kontrolü eklendi
+- `updateHedgehog()` fonksiyonunda Datça sahnesi için arabaya yürüme kontrolü eklendi
+- Arabaya yürüme durumunda karakter sınırları kontrolü atlanıyor (sınırsız hareket)
+- Normal hareket kontrolü arabaya yürüme sırasında devre dışı bırakılıyor

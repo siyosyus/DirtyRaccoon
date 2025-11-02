@@ -342,7 +342,10 @@
             islandDecorationsInitialized: false,  // Dekorasyonlar hesaplandı mı?
             carEntered: false,  // Arabaya binildi mi? (returningHome sahnesi için)
             carPositionLogged: false,  // Araba pozisyonu loglandı mı? (debug için)
-            carMoving: false  // Araba hareket ediyor mu? (arabaya binme sonrası)
+            carMoving: false,  // Araba hareket ediyor mu? (arabaya binme sonrası)
+            gameOver: false,  // Game Over ekranı gösterilsin mi?
+            playerTargetX: null,  // Rakun'un hedef pozisyonu (arabaya yürüme için)
+            datcaCharactersMovingToCar: false  // Karakterler arabaya doğru yürüyor mu?
         };
 
         // Tekne objesi (ada sahnesi için)
@@ -432,6 +435,7 @@
             speed: 5,
             jumpPower: 13,
             isOnGround: true,  // Başlangıçta zeminde
+            facingDirection: 1,  // 1 = sağa bakıyor, -1 = sola bakıyor
             animationState: 'idle' // idle, walk, jump
         };
 
@@ -449,9 +453,11 @@
             targetX: null,  // Hedef X pozisyonu
             showSpeechBubble: false,  // Diyalog baloncuğu gösterilsin mi?
             speechText: "Bir kahve mi içsek acaba?",  // Baloncuk metni
+            speechBubbleTimer: 0,  // Konuşma balonu timer'ı (otomatik kaybolma için)
             canMoveWithBubble: false,  // Baloncuk gösterilirken hareket edebilir mi? (Caffè Nero'dan sonra)
             waitingForPlayer: false,  // Rakunun hareket etmesini bekliyor mu? (ekran pozisyonunda)
-            screenTargetX: null  // Ekran pozisyon hedefi (rakun durduğunda)
+            screenTargetX: null,  // Ekran pozisyon hedefi (rakun durduğunda)
+            facingDirection: 1  // 1 = sağa bakıyor, -1 = sola bakıyor
         };
         
         // Caffè Nero binasının pozisyonu (başlangıçta hesaplanacak)
@@ -798,8 +804,87 @@
                 }
             }
 
+            // Datça Hotel etkileşimi (datca sahnesi)
+            if (game.sceneState === 'datca' && !game.datcaHotelEntered) {
+                const datcaXWorld = canvas.width / 2;
+                const houseStartX = datcaXWorld - 400;
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+
+                // Hotel pozisyonunu hesapla (5. ev)
+                let hotelX = houseStartX;
+                hotelX += 150 * houseScale + houseSpacing; // home1
+                hotelX += 196 * houseScale + houseSpacing; // home2
+                hotelX += 150 * houseScale + houseSpacing; // home1
+                hotelX += 196 * houseScale + houseSpacing; // home2
+
+                const hotelWidth = 204 * houseScale;
+                const hotelCenterX = hotelX + hotelWidth / 2;
+                const distanceToHotel = Math.abs(playerCenterX - hotelCenterX);
+
+                // Rakun hotel'e yakınsa diyalog aç
+                if (distanceToHotel < 150 && playerCenterX >= hotelX - 50 && playerCenterX <= hotelX + hotelWidth + 50) {
+                    openDatcaHotelDialog();
+                    return;
+                }
+            }
+
+            // Datça Son Ev etkileşimi (datca sahnesi - rakı balık yeri)
+            if (game.sceneState === 'datca' && game.datcaHotelEntered && !game.datcaLastHouseEntered) {
+                const datcaXWorld = canvas.width / 2;
+                const houseStartX = datcaXWorld - 400;
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+
+                // Son evin pozisyonunu hesapla (11. ev - son home2)
+                let lastHouseX = houseStartX;
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                lastHouseX += 196 * houseScale + houseSpacing; // home2
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                lastHouseX += 196 * houseScale + houseSpacing; // home2
+                lastHouseX += 204 * houseScale + houseSpacing; // hotel
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                lastHouseX += 196 * houseScale + houseSpacing; // home2
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                lastHouseX += 196 * houseScale + houseSpacing; // home2
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                // Son ev: home2
+
+                const lastHouseWidth = 196 * houseScale;
+                const lastHouseCenterX = lastHouseX + lastHouseWidth / 2;
+                const distanceToLastHouse = Math.abs(playerCenterX - lastHouseCenterX);
+
+                // Rakun son eve yakınsa diyalog aç
+                if (distanceToLastHouse < 150 && playerCenterX >= lastHouseX - 50 && playerCenterX <= lastHouseX + lastHouseWidth + 50) {
+                    openDatcaLastHouseDialog();
+                    return;
+                }
+            }
+
             // Kirpi etkileşimi E tuşu ile kaldırıldı - sadece opening sahnesinde otomatik açılıyor
             // (E tuşu ile kirpi'ye yaklaşınca diyalog açılmıyor)
+        }
+
+        // Open Datca Hotel Dialog (datca sahnesi için)
+        function openDatcaHotelDialog() {
+            dialog.isOpen = true;
+            dialog.isHedgehogDialog = false;
+            dialog.text = '30 Haziran 2024';
+            dialog.text2 = 'ORCEY hotele hoşgeldiniz. Keyifli tatiller dileriz.';
+            dialog.answers = ['Teşekkür ederiz.'];
+            dialog.currentObject = 'datcaHotel';
+            game.datcaHotelEntered = true;
+        }
+
+        // Open Datca Last House Dialog (rakı balık yeri)
+        function openDatcaLastHouseDialog() {
+            dialog.isOpen = true;
+            dialog.isHedgehogDialog = false;
+            dialog.text = 'Burada yazılacakö söylenecek çok fazla şey var aslında. Seni ne kadar çok sevdiğimi ya da seni tanıdığım için ne kadar şanslı olduğumu uzun uzun anlatabilirim tam bu ekranda. Ama kimseyi gözyaşlarına boğmak istemiyorum. O yüzden oyunumuza devam edelim ve bu anın en önemli sorusu sana bır kere daha gelsin boncuğum.';
+            dialog.text2 = 'Benimle evlenir misin?';
+            dialog.answers = ['Eveeeeeeeet!!!', 'O hatayı bir kere daha yapmam ben..'];
+            dialog.currentObject = 'datcaLastHouse';
+            game.datcaLastHouseEntered = true;
         }
 
         // Open Island Dock Dialog (onIsland sahnesi için)
@@ -1032,6 +1117,128 @@
                 closeDialog();
                 return;
             }
+
+            // Datça Hotel diyaloğu ise
+            if (!dialog.isHedgehogDialog && dialog.currentObject === 'datcaHotel') {
+                closeDialog();
+
+                // Kirpi'nin yeni konuşma balonunu göster
+                hedgehog.showSpeechBubble = true;
+                hedgehog.speechText = 'Hadi gidip rakı balık yapabileceğimiz güzel bir yer bulalım';
+                hedgehog.speechBubbleTimer = 300; // 5 saniye (60 fps * 5)
+
+                // Kirpi son eve gitmeye başlasın
+                const datcaXWorld = canvas.width / 2;
+                const houseStartX = datcaXWorld - 400;
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+
+                // Son evin pozisyonunu hesapla (11. ev - son home2)
+                let lastHouseX = houseStartX;
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                lastHouseX += 196 * houseScale + houseSpacing; // home2
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                lastHouseX += 196 * houseScale + houseSpacing; // home2
+                lastHouseX += 204 * houseScale + houseSpacing; // hotel
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                lastHouseX += 196 * houseScale + houseSpacing; // home2
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                lastHouseX += 196 * houseScale + houseSpacing; // home2
+                lastHouseX += 150 * houseScale + houseSpacing; // home1
+                // Son ev: home2
+                const lastHouseWidth = 196 * houseScale;
+
+                // Kirpi son evin merkezine gitsin
+                hedgehog.targetX = lastHouseX + lastHouseWidth / 2;
+                hedgehog.isMoving = true;
+                hedgehog.waitingForPlayer = false;
+                hedgehog.canMoveWithBubble = true; // Baloncukla hareket edebilir
+                game.datcaHedgehogMovingToLastHouse = true;
+                game.datcaHedgehogReachedLastHouse = false;
+
+                console.log('[Datca] Hotel check-in tamamlandı, kirpi son eve gidiyor:', hedgehog.targetX);
+                return;
+            }
+
+            // Datça Son Ev diyaloğu ise (rakı balık yeri)
+            if (!dialog.isHedgehogDialog && dialog.currentObject === 'datcaLastHouse') {
+                // Hangi cevap seçildi? (closeDialog'dan ÖNCE al!)
+                const selectedAnswer = dialog.answers[answerIndex];
+                console.log('[handleAnswer] Son ev diyaloğu - answerIndex:', answerIndex, 'seçilen:', selectedAnswer);
+
+                // "Eveeeeeeeet!!!" seçildiyse (index 0)
+                if (answerIndex === 0 && selectedAnswer === 'Eveeeeeeeet!!!') {
+                    console.log('[handleAnswer] Evet seçildi, karakterler arabaya gidiyor');
+                    closeDialog();
+                    // Karakterler arabaya doğru yürüsün
+                    // Araba pozisyonunu game.datcaCarX'ten al (eğer araba geldiyse)
+                    let carX = null;
+                    
+                    if (game.datcaCarX !== undefined && game.datcaCarX !== null && game.datcaCarArrived) {
+                        // Araba geldiyse, gerçek pozisyonunu kullan
+                        carX = game.datcaCarX;
+                    } else {
+                        // Araba henüz gelmediyse, hedef pozisyonunu hesapla
+                        const datcaXWorld = canvas.width / 2;
+                        const houseStartX = datcaXWorld - 400;
+                        const houseSpacing = 40;
+                        const houseScale = 1.35;
+                        
+                        // Hotel pozisyonunu hesapla (araba hotel önünde duruyor)
+                        let hotelX = houseStartX;
+                        hotelX += 150 * houseScale + houseSpacing; // home1
+                        hotelX += 196 * houseScale + houseSpacing; // home2
+                        hotelX += 150 * houseScale + houseSpacing; // home1
+                        hotelX += 196 * houseScale + houseSpacing; // home2
+                        
+                        // Araba pozisyonu (hotel'in sol çitinin 200 piksel önünde)
+                        const wallPadding = 10;
+                        const wallVWidth = sprites.island.decoration.wallVertical && sprites.island.decoration.wallVertical.complete
+                            ? sprites.island.decoration.wallVertical.width
+                            : 8;
+                        const hotelFenceLeft = hotelX - wallPadding - wallVWidth;
+                        carX = hotelFenceLeft - 200;
+                    }
+                    
+                    if (carX !== null) {
+                        // Rakun arabaya doğru yürüsün
+                        player.velocityX = 0; // Sıfırla
+                        game.playerTargetX = carX + 80; // Arabanın sağına
+                        
+                        // Kirpi arabaya doğru yürüsün
+                        hedgehog.targetX = carX + 30; // Arabanın soluna
+                        hedgehog.isMoving = true;
+                        hedgehog.waitingForPlayer = false;
+                        hedgehog.canMoveWithBubble = false;
+                        hedgehog.showSpeechBubble = false;
+                        
+                        game.datcaCharactersMovingToCar = true;
+                        
+                        // Debug log
+                        console.log('[handleAnswer] Karakterler arabaya yürüyor:', {
+                            carX: carX,
+                            playerTargetX: game.playerTargetX,
+                            hedgehogTargetX: hedgehog.targetX,
+                            currentPlayerX: player.x,
+                            currentHedgehogX: hedgehog.x,
+                            flagSet: game.datcaCharactersMovingToCar
+                        });
+                    }
+                    return;
+                }
+                
+                // "O hatayı bir kere daha yapmam ben.." seçildiyse (index 1)
+                if (answerIndex === 1 || selectedAnswer === 'O hatayı bir kere daha yapmam ben..') {
+                    closeDialog();
+                    // Game Over ekranı göster
+                    game.gameOver = true;
+                    return;
+                }
+
+                // Diğer durumlar için de kapat
+                closeDialog();
+                return;
+            }
         }
 
         // Add mouse click for answers and start button
@@ -1156,13 +1363,39 @@
 
         // Update player
         function updatePlayer() {
-            // Horizontal movement
-            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-                player.velocityX = -player.speed;
-            } else if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-                player.velocityX = player.speed;
+            // Datça sahnesinde arabaya doğru yürüme kontrolü
+            if (game.sceneState === 'datca' && game.datcaCharactersMovingToCar && game.playerTargetX !== null) {
+                const distanceToTarget = Math.abs(player.x - game.playerTargetX);
+
+                if (distanceToTarget > 5) {
+                    // Hedefe doğru yürü
+                    if (player.x < game.playerTargetX) {
+                        player.velocityX = player.speed;
+                        player.facingDirection = 1; // Sağa bakıyor
+                    } else {
+                        player.velocityX = -player.speed;
+                        player.facingDirection = -1; // Sola bakıyor
+                    }
+                } else {
+                    // Hedefe ulaşıldı, dur
+                    player.x = game.playerTargetX;
+                    player.velocityX = 0;
+                    game.datcaCharactersMovingToCar = false; // Hareket bitti
+                }
+
+                // Jumping ve gravity kontrolleri devam edecek ama normal hareket kontrolü atlanacak
+                // (Aşağıdaki else bloğu atlanır, ama jumping/gravity devam eder)
             } else {
-                player.velocityX *= game.friction;
+                // Normal hareket kontrolü
+                if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                    player.facingDirection = -1; // Sola bakıyor
+                    player.velocityX = -player.speed;
+                } else if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                    player.facingDirection = 1; // Sağa bakıyor
+                    player.velocityX = player.speed;
+                } else {
+                    player.velocityX *= game.friction;
+                }
             }
 
             // Jumping
@@ -1306,14 +1539,15 @@
             }
             
             // Datça sahnesi için karakter sınırları (onIsland ile aynı mantık, ancak iskele yok)
-            if (game.sceneState === 'datca') {
+            // NOT: Arabaya yürüme durumunda sınır kontrolü atlanır
+            if (game.sceneState === 'datca' && !game.datcaCharactersMovingToCar) {
                 const datcaXWorld = canvas.width / 2; // Datça merkezi
-                
+
                 // Evlerin pozisyonlarını hesapla (karakter sınırları için)
                 const houseStartX = datcaXWorld - 400; // İlk ev pozisyonu
                 const houseSpacing = 40;
                 const houseScale = 1.35;
-                
+
                 // Tüm evlerin toplam genişliğini hesapla
                 let totalHousesWidth = 0;
                 const housesPattern = [
@@ -1322,7 +1556,12 @@
                     { sprite: sprites.island.home1, name: 'home1' },
                     { sprite: sprites.island.home2, name: 'home2' },
                     { sprite: sprites.island.hotel, name: 'hotel' },
-                    { sprite: sprites.island.home1, name: 'home1' }
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' }
                 ];
                 
                 for (let i = 0; i < housesPattern.length; i++) {
@@ -1414,7 +1653,7 @@
                 const houseStartX = datcaXWorld - 400; // İlk ev pozisyonu
                 const houseSpacing = 40;
                 const houseScale = 1.35;
-                
+
                 // Tüm evlerin toplam genişliğini hesapla
                 let totalHousesWidth = 0;
                 const housesPattern = [
@@ -1423,7 +1662,12 @@
                     { sprite: sprites.island.home1, name: 'home1' },
                     { sprite: sprites.island.home2, name: 'home2' },
                     { sprite: sprites.island.hotel, name: 'hotel' },
-                    { sprite: sprites.island.home1, name: 'home1' }
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' }
                 ];
                 
                 for (let i = 0; i < housesPattern.length; i++) {
@@ -1513,6 +1757,36 @@
 
         // Update hedgehog (kirpi hareketi ve açılış sahnesi)
         function updateHedgehog() {
+            // Datça sahnesinde arabaya doğru yürüme kontrolü
+            if (game.sceneState === 'datca' && game.datcaCharactersMovingToCar && hedgehog.targetX !== null) {
+                const distanceToTarget = Math.abs(hedgehog.x - hedgehog.targetX);
+
+                if (distanceToTarget > 5) {
+                    // Hedefe doğru yürü
+                    if (hedgehog.x < hedgehog.targetX) {
+                        hedgehog.x += hedgehog.speed;
+                        hedgehog.facingDirection = 1; // Sağa bakıyor
+                    } else {
+                        hedgehog.x -= hedgehog.speed;
+                        hedgehog.facingDirection = -1; // Sola bakıyor
+                    }
+                    hedgehog.isMoving = true;
+                } else {
+                    // Hedefe ulaşıldı, dur
+                    hedgehog.x = hedgehog.targetX;
+                    hedgehog.isMoving = false;
+                }
+                
+                // Zemin kontrolü
+                let groundLevel = GROUND_LEVEL;
+                const datcaGroundOffset = 250;
+                groundLevel = GROUND_LEVEL - datcaGroundOffset;
+                if (hedgehog.y + hedgehog.height >= groundLevel) {
+                    hedgehog.y = groundLevel - hedgehog.height;
+                }
+                return;
+            }
+            
             // Zemin seviyesi kontrolü - Datça sahnesi için özel zemin seviyesi
             let groundLevel = GROUND_LEVEL;
             if (game.sceneState === 'datca') {
@@ -2249,6 +2523,55 @@
                     hedgehog.isMoving = false;
                 }
             }
+
+            // Datça sahnesi: Kirpi targetX'e doğru hareket eder (otele gitme / son eve gitme)
+            if (game.sceneState === 'datca' && hedgehog.targetX !== null && hedgehog.isMoving) {
+                // Ekran kontrolü - kirpi ekrandan çıkmamalı
+                const hedgehogScreenX = hedgehog.x - camera.x;
+                const willBeOffScreen = hedgehogScreenX < 0 || hedgehogScreenX > canvas.width - hedgehog.width;
+
+                // Eğer kirpi ekrandan çıkacaksa veya rakun duruyorsa
+                const playerIsStationary = Math.abs(player.velocityX) < 0.5;
+
+                if (willBeOffScreen || (hedgehogScreenX > canvas.width * 0.75 && playerIsStationary)) {
+                    // Kirpi ekranın %70'inde beklemeye geçsin
+                    const targetScreenX = canvas.width * 0.7;
+                    const targetWorldX = camera.x + targetScreenX;
+
+                    if (Math.abs(hedgehog.x - targetWorldX) > 10) {
+                        // Ekran hedefine git
+                        if (hedgehog.x < targetWorldX) {
+                            hedgehog.x += hedgehog.speed;
+                        } else {
+                            hedgehog.x -= hedgehog.speed;
+                        }
+                    } else {
+                        // Ekran pozisyonunda dur, rakun hareket edene kadar bekle
+                        hedgehog.isMoving = false;
+                        hedgehog.waitingForPlayer = true;
+                    }
+                } else {
+                    // Rakun hareket ediyorsa ve kirpi ekranda görünürse, hedefe git
+                    const distance = Math.abs(hedgehog.x - hedgehog.targetX);
+
+                    if (distance > 5) {
+                        if (hedgehog.x < hedgehog.targetX) {
+                            hedgehog.x += hedgehog.speed;
+                        } else {
+                            hedgehog.x -= hedgehog.speed;
+                        }
+                    } else {
+                        // Hedefe ulaştı (game loop'ta kontrol edilecek)
+                        hedgehog.x = hedgehog.targetX;
+                    }
+                }
+
+                // Eğer rakun hareket ediyorsa ve kirpi bekliyorduysa, tekrar hareket et
+                if (hedgehog.waitingForPlayer && !playerIsStationary) {
+                    hedgehog.waitingForPlayer = false;
+                    hedgehog.isMoving = true;
+                }
+            }
         }
 
         // Opening dialog (açılış sahnesi dialogu)
@@ -2283,14 +2606,31 @@
 
             // Draw sprite if loaded
             if (frame && frame.complete) {
-                // Sprite'ı aşağı kaydırarak çiz (collision box aynı yerde kalır)
-                ctx.drawImage(
-                    frame,
-                    screenX,
-                    screenY + spriteYOffset,
-                    player.width,
-                    player.height + spriteHeightExtension
-                );
+                ctx.save();
+
+                // Sola bakıyorsa sprite'ı flip et
+                if (player.facingDirection === -1) {
+                    ctx.translate(screenX + player.width, 0);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(
+                        frame,
+                        0,
+                        screenY + spriteYOffset,
+                        player.width,
+                        player.height + spriteHeightExtension
+                    );
+                } else {
+                    // Normal (sağa bakıyor)
+                    ctx.drawImage(
+                        frame,
+                        screenX,
+                        screenY + spriteYOffset,
+                        player.width,
+                        player.height + spriteHeightExtension
+                    );
+                }
+
+                ctx.restore();
             } else {
                 // Fallback rectangle while loading
                 ctx.fillStyle = '#D2691E';
@@ -2335,15 +2675,33 @@
                 const drawY = screenY + hedgehog.spriteYOffset + (maxHeight - drawHeight) / 2;
 
                 // Frame'i sprite sheet'ten çıkar ve çiz (collision box içinde, taşma olmadan)
-                ctx.drawImage(
-                    spriteSheet,
-                    currentFrame * frameWidth, 0,  // Source x, y
-                    frameWidth, frameHeight,        // Source width, height
-                    drawX,                          // Dest x (merkeze hizalı)
-                    drawY,                          // Dest y (merkeze hizalı)
-                    drawWidth,                      // Dest width (collision box içinde)
-                    drawHeight                      // Dest height (collision box içinde)
-                );
+                ctx.save();
+                if (hedgehog.facingDirection === -1) {
+                    // Sola bakıyorsa sprite'ı yatay çevir
+                    ctx.translate(drawX + drawWidth, 0);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(
+                        spriteSheet,
+                        currentFrame * frameWidth, 0,  // Source x, y
+                        frameWidth, frameHeight,        // Source width, height
+                        0,                              // Dest x (çevrilmiş koordinat)
+                        drawY,                          // Dest y (merkeze hizalı)
+                        drawWidth,                      // Dest width (collision box içinde)
+                        drawHeight                      // Dest height (collision box içinde)
+                    );
+                } else {
+                    // Sağa bakıyorsa normal çiz
+                    ctx.drawImage(
+                        spriteSheet,
+                        currentFrame * frameWidth, 0,  // Source x, y
+                        frameWidth, frameHeight,        // Source width, height
+                        drawX,                          // Dest x (merkeze hizalı)
+                        drawY,                          // Dest y (merkeze hizalı)
+                        drawWidth,                      // Dest width (collision box içinde)
+                        drawHeight                      // Dest height (collision box içinde)
+                    );
+                }
+                ctx.restore();
             } else {
                 // Fallback - sprite yüklenene kadar dikdörtgen
                 ctx.fillStyle = '#8B4513';
@@ -3581,12 +3939,37 @@
                     game.datcaCharactersInCar = false;
                     const datcaGroundOffset = 250;
                     const datcaY = GROUND_LEVEL - datcaGroundOffset;
-                    
+
                     // Karakterleri arabadan indir
                     player.x = game.datcaCarX + 100;
                     player.y = datcaY - player.height;
                     hedgehog.x = game.datcaCarX + 50;
                     hedgehog.y = datcaY - hedgehog.height - 10;
+
+                    // Kirpi otele yürümeye başlasın
+                    // Hotel pozisyonunu hesapla (initializeDatcaScene'deki gibi)
+                    const datcaXWorld = canvas.width / 2;
+                    const houseStartX = datcaXWorld - 400;
+                    const houseSpacing = 40;
+                    const houseScale = 1.35;
+
+                    // Hotel pozisyonunu hesapla (5. ev)
+                    let hotelX = houseStartX;
+                    hotelX += 150 * houseScale + houseSpacing; // home1
+                    hotelX += 196 * houseScale + houseSpacing; // home2
+                    hotelX += 150 * houseScale + houseSpacing; // home1
+                    hotelX += 196 * houseScale + houseSpacing; // home2
+                    // Hotel sol kenarı = hotelX
+
+                    // Kirpi hotel kapısının önüne gitsin (hotel merkezine)
+                    const hotelWidth = 204 * houseScale;
+                    hedgehog.targetX = hotelX + hotelWidth / 2;
+                    hedgehog.isMoving = true;
+                    hedgehog.waitingForPlayer = false;
+                    game.datcaHedgehogMovingToHotel = true;
+                    game.datcaHedgehogReachedHotel = false;
+
+                    console.log('[updateDatcaCar] Kirpi otele yürüyor, hedef:', hedgehog.targetX);
                 }
             }
             
@@ -4461,7 +4844,12 @@
                 { sprite: sprites.island.home1, name: 'home1' },
                 { sprite: sprites.island.home2, name: 'home2' },
                 { sprite: sprites.island.hotel, name: 'hotel' },
-                { sprite: sprites.island.home1, name: 'home1' }
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' }
             ];
             
             let hotelX = houseStartX;
@@ -5207,17 +5595,22 @@
             
             // Datça zemin merkezi (kameraya göre offset)
             const datcaX = datcaXWorld - camera.x;
-            
-            // Evleri çiz: home1, home2, home1, home2, hotel, home1
+
+            // Evleri çiz: home1, home2, home1, home2, hotel, home1, home2, home1, home2, home1, home2
             const housesPattern = [
                 { sprite: sprites.island.home1, name: 'home1' },
                 { sprite: sprites.island.home2, name: 'home2' },
                 { sprite: sprites.island.home1, name: 'home1' },
                 { sprite: sprites.island.home2, name: 'home2' },
                 { sprite: sprites.island.hotel, name: 'hotel' },
-                { sprite: sprites.island.home1, name: 'home1' }
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' }
             ];
-            
+
             let currentHouseX = datcaXWorld - 400; // İlk ev pozisyonu (soldan başla)
             const houseSpacing = 40; // Evler arası boşluk
             const houseScale = 1.35;
@@ -5246,19 +5639,42 @@
             const screenY = datcaY - camera.y;
             const groundScreenStartX = groundStartX - camera.x;
             const groundScreenEndX = groundEndX - camera.x;
-            
+
+            // Yolun altına deniz çiz (tüm ekran genişliğinde) - önce çiz ki yol üstte olsun
+            const seaStartY = screenY + roadHeight;
+            const seaHeight = canvas.height - seaStartY;
+            if (seaHeight > 0) {
+                // Deniz gradient (üstten açık mavi, alta doğru koyu mavi)
+                const seaGradient = ctx.createLinearGradient(0, seaStartY, 0, canvas.height);
+                seaGradient.addColorStop(0, '#4A90E2');   // Açık deniz mavisi
+                seaGradient.addColorStop(0.5, '#357ABD'); // Orta mavi
+                seaGradient.addColorStop(1, '#2E5F8F');   // Koyu deniz mavisi
+                ctx.fillStyle = seaGradient;
+                ctx.fillRect(0, seaStartY, canvas.width, seaHeight);
+
+                // Deniz dalgaları efekti (basit yatay çizgiler)
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.lineWidth = 1;
+                for (let y = seaStartY + 10; y < canvas.height; y += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+            }
+
             // Basit düz gri kaldırım çiz (ilk sahnedeki gibi - aşağıya doğru)
             ctx.fillStyle = '#C0C0C0'; // Açık gri kaldırım
             ctx.fillRect(groundScreenStartX, screenY, groundScreenEndX - groundScreenStartX, roadHeight);
-            
+
             // Üst kısmına hafif bir gölge/kenarlık ekle (derinlik için)
             ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
             ctx.fillRect(groundScreenStartX, screenY, groundScreenEndX - groundScreenStartX, 2);
-            
+
             // Alt kısmına da hafif bir gölge ekle
             ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
             ctx.fillRect(groundScreenStartX, screenY + roadHeight - 2, groundScreenEndX - groundScreenStartX, 2);
-            
+
             // Dekorasyonları hesapla (eğer henüz hesaplanmadıysa ve sprite'lar yüklendiyse)
             if (!game.datcaDecorationsInitialized || game.datcaDecorations.length === 0) {
                 // Tüm dekorasyon sprite'larının yüklendiğini kontrol et
@@ -5537,6 +5953,112 @@
                             ctx.fillText('ORCEY Hotel', signScreenX, textY);
 
                             ctx.restore();
+
+                            // "E" etkileşim sembolü (sadece etkileşim mümkünken göster)
+                            if (!game.datcaHotelEntered) {
+                                const playerCenterX = player.x + player.width / 2;
+                                const houseCenterX = currentHouseX + houseWidth / 2;
+                                const distanceToHotel = Math.abs(playerCenterX - houseCenterX);
+
+                                // Rakun hotel'e yakınsa "E" göster
+                                if (distanceToHotel < 150 && playerCenterX >= currentHouseX - 50 && playerCenterX <= currentHouseX + houseWidth + 50) {
+                                    // "E" sembolü çiz (hotel'in 20px üstünde)
+                                    ctx.save();
+                                    ctx.fillStyle = '#FFFFFF';
+                                    ctx.strokeStyle = '#000000';
+                                    ctx.lineWidth = 3;
+                                    ctx.font = 'bold 24px Arial';
+                                    ctx.textAlign = 'center';
+                                    const eX = screenX + houseWidth / 2;
+                                    const eY = screenY - 20; // Hotel'in 20px üstünde
+                                    ctx.strokeText('E', eX, eY);
+                                    ctx.fillText('E', eX, eY);
+                                    ctx.restore();
+                                }
+                            }
+                        }
+
+                        // Son ev için tabela (son home2 - index 10)
+                        if (i === 10 && house.name === 'home2') {
+                            // Pixel-art stilinde ahşap tabela çiz (her zaman görünür)
+                            const signScreenX = screenX + houseWidth / 2 + 100; // Evin merkezi
+                            const signScreenY = screenY + 125; // Evin üstünde
+                            const signWidth = 120; // Genişlik
+                            const signHeight = 42; // Yükseklik (iki satır için)
+                            const poleHeight = 25; // Tabela direği yüksekliği
+
+                            ctx.save();
+                            // Pixel-art için image smoothing'i kapat
+                            ctx.imageSmoothingEnabled = false;
+
+                            // Tabela direği (evin çatısına bağlı)
+                            ctx.fillStyle = '#8B4513'; // Kahverengi
+                            ctx.fillRect(signScreenX - 4, signScreenY + signHeight - 1, 8, poleHeight);
+                            // Direk gölgesi
+                            ctx.fillStyle = '#654321';
+                            ctx.fillRect(signScreenX - 3, signScreenY + signHeight, 6, poleHeight);
+
+                            // Tabela arka planı (ahşap görünümlü)
+                            // Ana arka plan - açık kahverengi
+                            ctx.fillStyle = '#D2691E';
+                            ctx.fillRect(signScreenX - signWidth / 2, signScreenY, signWidth, signHeight);
+
+                            // Ahşap dokusu - dikey çizgiler
+                            ctx.fillStyle = '#CD853F';
+                            for (let j = 0; j < signWidth; j += 4) {
+                                ctx.fillRect(signScreenX - signWidth / 2 + j, signScreenY, 1, signHeight);
+                            }
+
+                            // Tabela kenarları (kalın çerçeve)
+                            ctx.fillStyle = '#8B4513'; // Koyu kahverengi çerçeve
+                            ctx.fillRect(signScreenX - signWidth / 2, signScreenY, signWidth, 3); // Üst
+                            ctx.fillRect(signScreenX - signWidth / 2, signScreenY + signHeight - 3, signWidth, 3); // Alt
+                            ctx.fillRect(signScreenX - signWidth / 2, signScreenY, 3, signHeight); // Sol
+                            ctx.fillRect(signScreenX + signWidth / 2 - 3, signScreenY, 3, signHeight); // Sağ
+
+                            // Tabela gölgesi (derinlik için)
+                            ctx.fillStyle = '#654321';
+                            ctx.fillRect(signScreenX - signWidth / 2 + 2, signScreenY + 2, signWidth - 4, signHeight - 4);
+
+                            // Tabela metni (pixel-art stili - tek satır)
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.strokeStyle = '#000000';
+                            ctx.lineWidth = 1;
+                            ctx.font = 'bold 14px "Courier New", monospace'; // Pixel-art için monospace font
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+
+                            // Tek satır: "Tuna Restaurant"
+                            const textY = signScreenY + signHeight / 2;
+                            ctx.fillStyle = '#000000';
+                            ctx.fillText('Tuna Restaurant', signScreenX + 1, textY + 1);
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.fillText('Tuna Restaurant', signScreenX, textY);
+
+                            ctx.restore();
+
+                            // "E" etkileşim sembolü (sadece etkileşim mümkünken göster)
+                            if (game.datcaHotelEntered && !game.datcaLastHouseEntered) {
+                                const playerCenterX = player.x + player.width / 2;
+                                const houseCenterX = currentHouseX + houseWidth / 2;
+                                const distanceToHouse = Math.abs(playerCenterX - houseCenterX);
+
+                                // Rakun son eve yakınsa "E" göster
+                                if (distanceToHouse < 150 && playerCenterX >= currentHouseX - 50 && playerCenterX <= currentHouseX + houseWidth + 50) {
+                                    // "E" sembolü çiz (evin 20px üstünde)
+                                    ctx.save();
+                                    ctx.fillStyle = '#FFFFFF';
+                                    ctx.strokeStyle = '#000000';
+                                    ctx.lineWidth = 3;
+                                    ctx.font = 'bold 24px Arial';
+                                    ctx.textAlign = 'center';
+                                    const eX = screenX + houseWidth / 2;
+                                    const eY = screenY - 20; // Evin 20px üstünde
+                                    ctx.strokeText('E', eX, eY);
+                                    ctx.fillText('E', eX, eY);
+                                    ctx.restore();
+                                }
+                            }
                         }
                     }
 
@@ -6809,7 +7331,7 @@
                 }
                 // Datça sahnesinde karakterler arabadayken updateHedgehog çağrılmasın
                 if (!(game.sceneState === 'datca' && game.datcaCharactersInCar)) {
-                    updateHedgehog();  // Kirpi hareketi (açılış sahnesi)
+                updateHedgehog();  // Kirpi hareketi (açılış sahnesi)
                 }
                 updateCamera();  // Kamerayı her zaman güncelle
                 updateAnimation(sprites.raccoon);  // Rakun animasyonu güncelle
@@ -6817,6 +7339,64 @@
                 updateCar();  // Araba hareketi (returningHome sahnesi)
                 updateRoadTripCar();  // Istanbul-Datça arabası hareketi
                 updateDatcaCar();  // Datça sahnesi arabası hareketi
+
+                // Datça sahnesinde kirpinin otele ulaşmasını kontrol et
+                if (game.sceneState === 'datca' && game.datcaHedgehogMovingToHotel && !game.datcaHedgehogReachedHotel) {
+                    // Kirpi hedefe ulaştı mı?
+                    if (hedgehog.targetX !== null && Math.abs(hedgehog.x - hedgehog.targetX) < 5) {
+                        hedgehog.isMoving = false;
+                        hedgehog.targetX = null;
+                        game.datcaHedgehogMovingToHotel = false;
+                        game.datcaHedgehogReachedHotel = true;
+
+                        // Konuşma balonunu göster
+                        hedgehog.showSpeechBubble = true;
+                        hedgehog.speechText = 'Check-in yapalım da yemeğe gidelim yahu. Kurt gibi açım!!';
+                        hedgehog.speechBubbleTimer = 300; // 5 saniye (60 fps * 5)
+
+                        console.log('[Datca] Kirpi otele ulaştı, diyalog gösteriliyor');
+                    }
+                }
+
+                // Datça sahnesinde kirpinin son eve ulaşmasını kontrol et
+                if (game.sceneState === 'datca' && game.datcaHedgehogMovingToLastHouse && !game.datcaHedgehogReachedLastHouse) {
+                    // Kirpi hedefe ulaştı mı?
+                    if (hedgehog.targetX !== null && Math.abs(hedgehog.x - hedgehog.targetX) < 5) {
+                        hedgehog.isMoving = false;
+                        hedgehog.targetX = null;
+                        game.datcaHedgehogMovingToLastHouse = false;
+                        game.datcaHedgehogReachedLastHouse = true;
+
+                        console.log('[Datca] Kirpi son eve ulaştı');
+                    }
+                }
+
+                // Datça sahnesinde karakterlerin arabaya ulaşmasını kontrol et
+                if (game.sceneState === 'datca' && game.datcaCharactersMovingToCar) {
+                    const playerReached = game.playerTargetX !== null && Math.abs(player.x - game.playerTargetX) < 10;
+                    const hedgehogReached = hedgehog.targetX !== null && Math.abs(hedgehog.x - hedgehog.targetX) < 10;
+
+                    if (playerReached && hedgehogReached) {
+                        // Her iki karakter de arabaya ulaştı
+                        player.velocityX = 0;
+                        hedgehog.isMoving = false;
+                        game.datcaCharactersMovingToCar = false;
+                        game.playerTargetX = null;
+                        hedgehog.targetX = null;
+
+                        console.log('[Datca] Karakterler arabaya ulaştı!');
+                        // İleride: sahne geçişi veya araba hareket etmeye başlasın
+                    }
+                }
+
+                // Kirpi konuşma balonu timer'ı
+                if (hedgehog.showSpeechBubble && hedgehog.speechBubbleTimer > 0) {
+                    hedgehog.speechBubbleTimer--;
+                    if (hedgehog.speechBubbleTimer <= 0) {
+                        hedgehog.showSpeechBubble = false;
+                        hedgehog.speechText = '';
+                    }
+                }
 
                 // Draw - Scene state'e göre farklı çizim
                 if (game.sceneState === 'opening') {
@@ -6873,10 +7453,41 @@
 
                 drawHUD();       // HUD en üstte (kamera ile hareket etmez)
                 drawDialog();    // Dialog en üstte olmalı
+                
+                // Game Over ekranı (en üstte)
+                if (game.gameOver) {
+                    drawGameOver();
+                }
             }
 
             // Continue loop
             requestAnimationFrame(gameLoop);
+        }
+        
+        // Game Over ekranı çizimi
+        function drawGameOver() {
+            // Koyu arka plan (yarı şeffaf siyah)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // "Game Over" yazısı (büyük ve kırmızı)
+            ctx.save();
+            ctx.fillStyle = '#FF0000';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 6;
+            ctx.font = 'bold 120px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Yazıyı canvas ortasına çiz
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Gölge efekti
+            ctx.strokeText('GAME OVER', centerX + 3, centerY + 3);
+            ctx.fillText('GAME OVER', centerX, centerY);
+            
+            ctx.restore();
         }
 
         // TEST MODU: Oyunu datca sahnesinden başlat
