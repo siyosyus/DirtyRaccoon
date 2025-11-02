@@ -341,7 +341,8 @@
             islandDecorations: [],  // Ada sahnesindeki dekorasyonlar (bir kez hesaplanıp saklanır)
             islandDecorationsInitialized: false,  // Dekorasyonlar hesaplandı mı?
             carEntered: false,  // Arabaya binildi mi? (returningHome sahnesi için)
-            carPositionLogged: false  // Araba pozisyonu loglandı mı? (debug için)
+            carPositionLogged: false,  // Araba pozisyonu loglandı mı? (debug için)
+            carMoving: false  // Araba hareket ediyor mu? (arabaya binme sonrası)
         };
 
         // Tekne objesi (ada sahnesi için)
@@ -695,9 +696,18 @@
 
             // Araba etkileşimi (returningHome sahnesi)
             if (game.sceneState === 'returningHome' && !game.carEntered) {
-                // Son ev pozisyonunu hesapla (homeX zaten drawReturningHome'da hesaplanıyor)
+                // İskele pozisyonu hesapla (drawReturningHome ile aynı mantık)
                 const returningDockX = 0;
                 const returningDockWidth = 180;
+                const dockStartX = returningDockX + returningDockWidth + 135; // İskele başlangıcı (15px sola kaydırıldı)
+                const dockWidth = 180;
+                
+                // Sağdan 2. bacağın x koordinatını hesapla (yol başlangıcı)
+                const poleCount = 6;
+                const poleSpacing = dockWidth / (poleCount - 1);
+                const rightSecondPoleX = dockStartX + (4 * poleSpacing); // Sağdan 2. baca (index 4)
+                
+                // Evlerin pozisyonunu hesapla
                 const housesPattern = [
                     { sprite: sprites.island.home1, name: 'home1' },
                     { sprite: sprites.island.home2, name: 'home2' },
@@ -706,41 +716,70 @@
                     { sprite: sprites.island.hotel, name: 'hotel' },
                     { sprite: sprites.island.home1, name: 'home1' }
                 ];
-                const dockEndX = returningDockX + returningDockWidth + 150; // Deniz alanının sonu (iskele başlangıcı)
-                const dockWidth = 180;
-                const houseStartX = dockEndX + dockWidth + 50 + 100; // İskelenin sonundan 150px sonra (100px daha sağa)
+                const houseStartX = rightSecondPoleX + 50 + 100; // İskelenin sonundan 150px sonra
                 const houseSpacing = 40;
                 const houseScale = 1.35;
                 
-                let totalHousesWidth = 0;
+                // Hotel pozisyonunu bul (5. sırada - index 4)
+                let hotelWorldX = null;
+                let hotelWidth = 96 * houseScale; // Varsayılan
+                let currentHouseX = houseStartX;
                 for (let i = 0; i < housesPattern.length; i++) {
                     const house = housesPattern[i];
                     if (house.sprite && house.sprite.complete) {
                         const houseWidth = house.sprite.width * houseScale;
-                        totalHousesWidth += houseWidth;
-                        if (i < housesPattern.length - 1) {
-                            totalHousesWidth += houseSpacing;
+                        
+                        // Hotel pozisyonunu kaydet (5. ev - index 4)
+                        if (i === 4 && house.name === 'hotel') {
+                            hotelWorldX = currentHouseX;
+                            hotelWidth = houseWidth;
+                            break;
                         }
+                        
+                        // Bir sonraki ev pozisyonu
+                        currentHouseX += houseWidth + houseSpacing;
                     }
                 }
                 
-                const lastHouseRight = houseStartX + totalHousesWidth;
-                if (homeX === null) {
-                    homeX = lastHouseRight;
+                // Eğer hotel pozisyonu hesaplanamadıysa, fallback kullan
+                if (hotelWorldX === null) {
+                    hotelWorldX = houseStartX;
+                    // İlk 4 evin genişliklerini topla
+                    if (sprites.island.home1 && sprites.island.home1.complete && 
+                        sprites.island.home2 && sprites.island.home2.complete) {
+                        const home1Width = sprites.island.home1.width * houseScale;
+                        const home2Width = sprites.island.home2.width * houseScale;
+                        hotelWorldX += (home1Width + houseSpacing) + (home2Width + houseSpacing) + 
+                                        (home1Width + houseSpacing) + (home2Width + houseSpacing);
+                    }
                 }
-                // carX drawReturningHome() içinde hesaplanacak, burada hesaplamaya gerek yok
+                
+                // homeX = hotel pozisyonu (oyuncunun evi)
+                if (hotelWorldX !== null) {
+                    homeX = hotelWorldX; // Hotel oyuncunun evi
+                }
+                
+                // Araba pozisyonunu hesapla (hotel önünde)
+                if (carX === null && hotelWorldX !== null) {
+                    carX = hotelWorldX + (hotelWidth / 2) - 80; // Arabanın genişliği 160px, merkezden 80px sola
+                }
+                
+                // Eğer carX veya homeX hala null ise, etkileşim yapma
+                if (carX === null || homeX === null) {
+                    return;
+                }
                 
                 const playerCenterX = player.x + player.width / 2;
-                const carCenterX = carX + 75; // Arabanın merkezi (150px genişlik)
+                const carCenterX = carX + 80; // Arabanın merkezi (160px genişlik için 80px)
                 const distanceToCar = Math.abs(playerCenterX - carCenterX);
                 
-                // Karakterler son eve vardı mı kontrol et
+                // Karakterler eve (hotel) vardı mı kontrol et
                 const distanceToHome = Math.abs(playerCenterX - homeX);
                 const isNearCar = distanceToCar < 120;
-                const isAtHome = distanceToHome < 150; // Son eve yakınsa
+                const isAtHome = distanceToHome < 150;
                 const playerOnGround = player.y + player.height >= GROUND_LEVEL - 10;
                 
-                // Eğer oyuncu son eve vardıysa ve arabaya yakınsa ve E tuşuna basıldıysa
+                // Eğer oyuncu eve vardıysa ve arabaya yakınsa ve E tuşuna basıldıysa
                 if (isAtHome && isNearCar && playerOnGround && (keys['e'] || keys['E'])) {
                     openCarDialog();
                     return;
@@ -766,7 +805,7 @@
             dialog.isOpen = true;
             dialog.isHedgehogDialog = false;
             dialog.currentObject = 'car'; // Araba diyaloğu için identifier
-            dialog.text = 'Arabaya binip yola çıkıyoruz.';
+            dialog.text = 'Evet boncuk, arabaya geldik. Hadi hazırsan yola çıkalım.💕';
             dialog.text2 = '';
             dialog.answers = ['Hadi gidelim'];
         }
@@ -977,9 +1016,8 @@
             // Araba diyaloğu ise (returningHome sahnesi)
             if (!dialog.isHedgehogDialog && dialog.currentObject === 'car') {
                 game.carEntered = true;
+                game.carMoving = true; // Arabayı hareket ettir
                 closeDialog();
-                // Araba sahnesine geç (sonraki adım)
-                // TODO: Araba hareket sahnesi eklenecek
                 return;
             }
         }
@@ -1311,7 +1349,12 @@
                 if (maxCameraX > 0 && camera.x > maxCameraX) camera.x = maxCameraX;
             } else if (game.sceneState === 'returningHome') {
                 // ReturningHome sahnesi için kamera
-                camera.x = player.x - canvas.width / 2 + player.width / 2;
+                // Eğer arabaya binildiyse kamerayı arabaya kilitle
+                if (game.carEntered && game.carMoving && carX !== null) {
+                    camera.x = carX - canvas.width / 2 + 80; // Arabanın merkezi (160px genişlik için 80px)
+                } else {
+                    camera.x = player.x - canvas.width / 2 + player.width / 2;
+                }
                 
                 // Kamera sınırları
                 if (camera.x < 0) camera.x = 0; // Sol sınır
@@ -1669,9 +1712,18 @@
                     }
                 }
                 
-                // Kirpi'nin hedefi: Hotel önü (oyuncunun evi)
-                if (hedgehog.targetX === null) {
+                // Araba pozisyonunu hesapla
+                if (carX === null) {
                     if (hotelWorldX !== null) {
+                        carX = hotelWorldX + (hotelWidth / 2) - 80; // Arabanın genişliği 160px, merkezden 80px sola
+                    }
+                }
+                
+                // Kirpi'nin hedefi: Araba (hotel önü)
+                if (hedgehog.targetX === null) {
+                    if (carX !== null) {
+                        hedgehog.targetX = carX + 40; // Arabanın sol tarafına yakın
+                    } else if (hotelWorldX !== null) {
                         hedgehog.targetX = hotelWorldX + (hotelWidth / 2) - hedgehog.width - 30;
                     } else if (homeX !== null) {
                         hedgehog.targetX = homeX - hedgehog.width - 30;
@@ -1679,32 +1731,78 @@
                     hedgehog.isMoving = true;
                 }
                 
+                // Diyalog baloncuğu ayarları
+                hedgehog.showSpeechBubble = true;
+                hedgehog.speechText = 'Hadi doğru arabaya! Ama sen sür olur mu ben biraz uyuyacağım. :)';
+                hedgehog.canMoveWithBubble = true;
+                
                 // Eğer rakunun hareket etmesini bekliyorsa ve rakun hareket etti, hareket etmeye devam et
                 if (hedgehog.waitingForPlayer && !playerIsStationary) {
                     hedgehog.waitingForPlayer = false;
                     hedgehog.screenTargetX = null;
-                    if (hedgehog.targetX === null) {
-                        if (hotelWorldX !== null) {
-                            hedgehog.targetX = hotelWorldX + (hotelWidth / 2) - hedgehog.width - 30;
-                        } else if (homeX !== null) {
-                            hedgehog.targetX = homeX - hedgehog.width - 30;
-                        }
-                        hedgehog.isMoving = true;
+                    // canMoveWithBubble true ise baloncuk gösterilmeye devam etsin
+                    
+                    // Araba hedefini her zaman güncelle
+                    if (carX !== null) {
+                        hedgehog.targetX = carX + 40;
+                    } else if (hotelWorldX !== null) {
+                        hedgehog.targetX = hotelWorldX + (hotelWidth / 2) - hedgehog.width - 30;
                     }
+                    hedgehog.isMoving = true;
                 }
                 
-                // Hedefe doğru hareket mantığı
-                if (hedgehog.isMoving && hedgehog.targetX !== null) {
-                    const distanceToTarget = Math.abs(hedgehog.x - hedgehog.targetX);
+                // Eğer ekran hedefinde bekliyorsa, ekran hedefinde kal
+                if (hedgehog.waitingForPlayer && hedgehog.screenTargetX !== null) {
+                    // Ekran pozisyonunu her frame güncelle (kamera hareket edebilir)
+                    const targetScreenX = canvas.width * 0.7;
+                    const targetWorldX = camera.x + targetScreenX;
+                    hedgehog.screenTargetX = targetWorldX; // Hedefi güncelle
                     
-                    // Kirpi ekrandan çıkmamalı kontrolü
-                    const hedgehogScreenX = hedgehog.x - camera.x;
-                    const nextX = hedgehog.x < hedgehog.targetX ? hedgehog.x + hedgehog.speed : hedgehog.x - hedgehog.speed;
+                    const distanceToScreenTarget = Math.abs(hedgehog.x - targetWorldX);
+                    
+                    if (distanceToScreenTarget > 10) {
+                        // Ekran hedefine doğru hareket et
+                        hedgehog.isMoving = true;
+                        if (hedgehog.x < targetWorldX) {
+                            hedgehog.x += hedgehog.speed;
+                        } else {
+                            hedgehog.x -= hedgehog.speed;
+                        }
+                    } else {
+                        // Ekran hedefinde dur ve baloncuk göster
+                        hedgehog.isMoving = false;
+                        hedgehog.showSpeechBubble = true;
+                    }
+                    return;
+                }
+                
+                // Araba hedefini kontrol et ve güncelle
+                const expectedTargetX = carX !== null ? carX + 40 : (hotelWorldX !== null ? hotelWorldX + (hotelWidth / 2) - hedgehog.width - 30 : null);
+                if (expectedTargetX !== null && (hedgehog.targetX === null || Math.abs(hedgehog.targetX - expectedTargetX) > 100)) {
+                    // Hedef yoksa veya yanlışsa, doğru hedefi ayarla
+                    hedgehog.targetX = expectedTargetX;
+                    hedgehog.isMoving = true;
+                }
+                
+                // Araba hedefine gitme mantığı (onIsland ile aynı mantık)
+                if (hedgehog.targetX !== null && hedgehog.isMoving) {
+                    const hedgehogCenterX = hedgehog.x + hedgehog.width / 2;
+                    const targetCenterX = hedgehog.targetX + hedgehog.width / 2;
+                    const distance = Math.abs(hedgehogCenterX - targetCenterX);
+                    
+                    // Gelecekteki pozisyonu kontrol et
+                    let nextX = hedgehog.x;
+                    if (hedgehog.x < hedgehog.targetX) {
+                        nextX = hedgehog.x + hedgehog.speed;
+                    } else {
+                        nextX = hedgehog.x - hedgehog.speed;
+                    }
                     const nextScreenX = nextX - camera.x;
                     const willBeVisible = nextScreenX >= 0 && nextScreenX <= canvas.width - hedgehog.width;
                     
                     // Eğer kirpi ekrandan çıkacaksa, dur ve ekranda görünür bir noktaya gel
                     if (!willBeVisible || nextScreenX + hedgehog.width > canvas.width * 0.7) {
+                        // Ekrandan çıkacak, dur ve ekran hedefine gel
                         hedgehog.isMoving = false;
                         hedgehog.waitingForPlayer = true;
                         const targetScreenX = canvas.width * 0.7;
@@ -1712,18 +1810,18 @@
                         hedgehog.showSpeechBubble = true;
                         return;
                     }
-                    
-                    if (distanceToTarget < 5) {
-                        // Hedefe ulaşıldı, dur
-                        hedgehog.isMoving = false;
-                        hedgehog.x = hedgehog.targetX;
-                    } else {
-                        // Hedefe doğru hareket et
+
+                    // Hedefe doğru hareket et
+                    if (distance > 10) {
                         if (hedgehog.x < hedgehog.targetX) {
                             hedgehog.x += hedgehog.speed;
                         } else {
                             hedgehog.x -= hedgehog.speed;
                         }
+                    } else {
+                        // Araba hedefine ulaşıldı
+                        hedgehog.isMoving = false;
+                        hedgehog.x = hedgehog.targetX;
                     }
                 }
                 
@@ -2150,8 +2248,8 @@
             // ctx.strokeStyle = 'blue';
             // ctx.strokeRect(screenX, screenY, hedgehog.width, hedgehog.height);
 
-            // Diyalog baloncuğu çiz (gameplay ve onIsland sahnelerinde gösterilmesi gerekiyorsa)
-            if ((game.sceneState === 'gameplay' || game.sceneState === 'onIsland') && hedgehog.showSpeechBubble) {
+            // Diyalog baloncuğu çiz (gameplay, onIsland ve returningHome sahnelerinde gösterilmesi gerekiyorsa)
+            if ((game.sceneState === 'gameplay' || game.sceneState === 'onIsland' || game.sceneState === 'returningHome') && hedgehog.showSpeechBubble) {
                 const bubbleX = screenX + hedgehog.width / 2;
                 const bubbleY = screenY - 50; // Kirpi'nin kafasının üstünde
                 const text = hedgehog.speechText; // Dinamik metin
@@ -2648,7 +2746,12 @@
             // Zemin başlangıç ve bitiş pozisyonları - sağdan 2. bacağın x koordinatından başla
             const groundStartX = rightSecondPoleX; // Sağdan 2. bacağın x koordinatından başla
             const lastHouseRight = houseStartX + totalHousesWidth;
-            const groundEndX = lastHouseRight + 300; // Son evden 300px sonra bitir (araba için alan)
+            
+            // Yolu ekranın sonuna kadar uzat (kamera maksimum pozisyonu + ekran genişliği)
+            // Maksimum kamera pozisyonu hesapla (son evden 300px sonra)
+            const maxCameraX = lastHouseRight + 300 - canvas.width;
+            // Yolu ekranın görünür alanından biraz daha fazla uzat
+            const groundEndX = camera.x + canvas.width + 500; // Ekranın sonundan 500px daha fazla
             
             // Zemin çiz (onIsland benzeri - düz gri kaldırım)
             const roadHeight = 70;
@@ -2932,15 +3035,17 @@
                 }
             }
             
-            // Araba pozisyonu: Hotel önünde (her zaman yeniden hesapla)
-            if (hotelWorldX !== null) {
-                    // Hotel önünde, merkezden biraz sola hizalı
-                    carX = hotelWorldX + (hotelWidth / 2) - 80; // Arabanın genişliği 160px, merkezden 80px sola
-            } else {
-                const lastHouseRightWorld = houseStartX + totalHousesWidth;
-                const lastHouseWidth = sprites.island.home1 && sprites.island.home1.complete 
-                    ? sprites.island.home1.width * houseScale : 100;
-                carX = lastHouseRightWorld + 50; // Fallback: Son evden 50px sonra
+            // Araba pozisyonu: Hotel önünde (sadece arabaya binilmediyse yeniden hesapla)
+            if (!game.carEntered) {
+                if (hotelWorldX !== null) {
+                        // Hotel önünde, merkezden biraz sola hizalı
+                        carX = hotelWorldX + (hotelWidth / 2) - 80; // Arabanın genişliği 160px, merkezden 80px sola
+                } else {
+                    const lastHouseRightWorld = houseStartX + totalHousesWidth;
+                    const lastHouseWidth = sprites.island.home1 && sprites.island.home1.complete 
+                        ? sprites.island.home1.width * houseScale : 100;
+                    carX = lastHouseRightWorld + 50; // Fallback: Son evden 50px sonra
+                }
             }
             
             // Debug: Hotel ve araba pozisyonlarını konsola yazdır (sadece bir kez)
@@ -2959,18 +3064,22 @@
                 game.carPositionLogged = true;
             }
             
-            // Karakterler çiz
-            drawHedgehog();
-            drawPlayer();
-            
-            // Araba çiz (hotel önünde)
+            // Araba çiz (hotel önünde) - ÖNCE araba çiz (arka planda)
             drawReturningHomeCar();
+            
+            // Karakterler çiz - SONRA karakterler (önde görünecek)
+            // Eğer arabaya binildiyse karakterleri gizle
+            if (!game.carEntered) {
+                drawHedgehog();
+                drawPlayer();
+            }
         }
         
         // Draw returning home car (eve dönüş arabası)
         function drawReturningHomeCar() {
             if (game.sceneState !== 'returningHome') return;
-            if (carX === null || homeX === null) return;
+            // carX null olabilir (hareket sırasında), bu durumda çizme
+            if (carX === null) return;
             
             const carScreenX = carX - camera.x;
             const carScreenY = GROUND_LEVEL - camera.y - 60; // Zeminden 60px yukarıda
@@ -3151,28 +3260,96 @@
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
                 ctx.fillRect(carScreenX, carScreenY + carHeight + 10, carWidth, 4);
                 
-                // "E" etkileşim sembolü (eğer oyuncu arabaya yakınsa)
+                // "E" etkileşim sembolü (eğer oyuncu arabaya yakınsa) - checkInteraction ile aynı mantık
                 if (!dialog.isOpen && !game.carEntered) {
-                    const playerCenterX = player.x + player.width / 2;
-                    const carCenterX = carX + 80; // Arabanın merkezi (160px genişlik)
-                    const distanceToCar = Math.abs(playerCenterX - carCenterX);
+                    // carX ve homeX hesaplaması (drawReturningHome ile aynı mantık)
+                    const returningDockX = 0;
+                    const returningDockWidth = 180;
+                    const dockStartX = returningDockX + returningDockWidth + 135;
+                    const dockWidth = 180;
+                    const poleCount = 6;
+                    const poleSpacing = dockWidth / (poleCount - 1);
+                    const rightSecondPoleX = dockStartX + (4 * poleSpacing);
+                    const houseStartX = rightSecondPoleX + 50 + 100;
+                    const houseSpacing = 40;
+                    const houseScale = 1.35;
                     
-                    // Karakterler eve (homeX) vardı mı kontrol et
-                    const distanceToHome = Math.abs(playerCenterX - homeX);
+                    const housesPattern = [
+                        { sprite: sprites.island.home1, name: 'home1' },
+                        { sprite: sprites.island.home2, name: 'home2' },
+                        { sprite: sprites.island.home1, name: 'home1' },
+                        { sprite: sprites.island.home2, name: 'home2' },
+                        { sprite: sprites.island.hotel, name: 'hotel' },
+                        { sprite: sprites.island.home1, name: 'home1' }
+                    ];
                     
-                    if (distanceToHome < 100 && distanceToCar < 120 && player.y + player.height >= GROUND_LEVEL - 10) {
-                        const carTextY = carScreenY - 30;
+                    // Hotel pozisyonunu bul
+                    let hotelWorldXLocal = null;
+                    let hotelWidthLocal = 96 * houseScale;
+                    let currentHouseX = houseStartX;
+                    for (let i = 0; i < housesPattern.length; i++) {
+                        const house = housesPattern[i];
+                        if (house.sprite && house.sprite.complete) {
+                            const houseWidth = house.sprite.width * houseScale;
+                            if (i === 4 && house.name === 'hotel') {
+                                hotelWorldXLocal = currentHouseX;
+                                hotelWidthLocal = houseWidth;
+                                break;
+                            }
+                            currentHouseX += houseWidth + houseSpacing;
+                        }
+                    }
+                    
+                    // Eğer hotel bulunamadıysa fallback
+                    if (hotelWorldXLocal === null && sprites.island.home1 && sprites.island.home1.complete && 
+                        sprites.island.home2 && sprites.island.home2.complete) {
+                        const home1Width = sprites.island.home1.width * houseScale;
+                        const home2Width = sprites.island.home2.width * houseScale;
+                        hotelWorldXLocal = houseStartX + (home1Width + houseSpacing) + (home2Width + houseSpacing) + 
+                                          (home1Width + houseSpacing) + (home2Width + houseSpacing);
+                    }
+                    
+                    // Araba pozisyonunu hesapla
+                    let carXLocal = null;
+                    if (hotelWorldXLocal !== null) {
+                        carXLocal = hotelWorldXLocal + (hotelWidthLocal / 2) - 80;
+                    }
+                    
+                    if (hotelWorldXLocal !== null && carXLocal !== null) {
+                        const playerCenterX = player.x + player.width / 2;
+                        const carCenterX = carXLocal + 80;
+                        const distanceToCar = Math.abs(playerCenterX - carCenterX);
+                        const distanceToHome = Math.abs(playerCenterX - hotelWorldXLocal);
+                        const isNearCar = distanceToCar < 120;
+                        const isAtHome = distanceToHome < 150;
+                        const playerOnGround = player.y + player.height >= GROUND_LEVEL - 10;
                         
-                        ctx.fillStyle = 'white';
-                        ctx.strokeStyle = 'black';
-                ctx.lineWidth = 3;
-                        ctx.font = 'bold 20px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.strokeText('E', carCenterX - camera.x, carTextY);
-                        ctx.fillText('E', carCenterX - camera.x, carTextY);
-                        ctx.textAlign = 'left';
-                        ctx.textBaseline = 'alphabetic';
+                        if (isAtHome && isNearCar && playerOnGround) {
+                            // Hotel yüksekliğini hesapla
+                            const houseScale = 1.35;
+                            let hotelHeight = 96 * houseScale;
+                            if (sprites.island.hotel && sprites.island.hotel.complete) {
+                                hotelHeight = sprites.island.hotel.height * houseScale;
+                            }
+                            
+                            // Hotel'in ekran pozisyonunu hesapla
+                            const hotelScreenY = GROUND_LEVEL - camera.y - hotelHeight + 15; // Hotel'in üst kenarı (verticalOffset = 15)
+                            
+                            // "E" sembolünü evin yüksekliğinde +20px'de göster
+                            const eSymbolY = hotelScreenY - 20; // Evin üstünde 20px yukarıda
+                            const eSymbolX = carCenterX - camera.x; // Arabanın merkezi hizasında
+                            
+                            ctx.fillStyle = 'white';
+                            ctx.strokeStyle = 'black';
+                            ctx.lineWidth = 3;
+                            ctx.font = 'bold 20px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.strokeText('E', eSymbolX, eSymbolY);
+                            ctx.fillText('E', eSymbolX, eSymbolY);
+                            ctx.textAlign = 'left';
+                            ctx.textBaseline = 'alphabetic';
+                        }
                     }
                 }
             }
@@ -3427,7 +3604,7 @@
             player.isOnGround = true;
             hedgehog.isMoving = false;
             hedgehog.targetX = null;
-            hedgehog.showSpeechBubble = false;
+            // showSpeechBubble aşağıda ayarlanacak
             
             // Dekorasyonları sıfırla (yeniden hesaplanacak)
             game.islandDecorations = [];
@@ -3456,13 +3633,18 @@
                 });
             }
             
-            // Kirpi'nin hedefi: Hotel önü (araba yanı)
-            if (hotelWorldX !== null) {
+            // Kirpi'nin hedefi: Araba (hotel önü)
+            if (carX !== null) {
+                hedgehog.targetX = carX + 40; // Arabanın sol tarafına yakın (araç kapısı gibi)
+            } else if (hotelWorldX !== null) {
                 hedgehog.targetX = hotelWorldX + (hotelWidth / 2) - hedgehog.width - 30;
             } else {
                 hedgehog.targetX = homeX - hedgehog.width - 30;
             }
             hedgehog.isMoving = true;
+            hedgehog.showSpeechBubble = true;
+            hedgehog.speechText = 'Hadi doğru arabaya! Ama sen sür olur mu ben biraz uyuyacağım. :)';
+            hedgehog.canMoveWithBubble = true;
             
             // Kamerayı karakterlere odakla (iskele görünür olsun)
             camera.x = Math.max(0, player.x - canvas.width / 2 + player.width / 2);
@@ -4462,6 +4644,33 @@
             return { x, y };
         }
 
+        // Araba güncelleme (returningHome sahnesi - arabaya binme sonrası)
+        function updateCar() {
+            if (game.sceneState !== 'returningHome') return;
+            if (!game.carMoving) return;
+            
+            // Araba sağa doğru hareket et (+x yönünde)
+            const carSpeed = 5; // Arabanın hızı (pixel/frame)
+            
+            if (carX !== null) {
+                carX += carSpeed;
+                
+                // Debug: İlk birkaç frame'de log (sonra kaldırılabilir)
+                // console.log('[updateCar] Araba hareket ediyor:', { carX, carSpeed, carMoving: game.carMoving });
+                
+                // Araba ekrandan çıktı mı kontrol et
+                const carScreenX = carX - camera.x;
+                if (carScreenX > canvas.width + 100) {
+                    // Araba ekrandan çıktı, hareketi durdur
+                    game.carMoving = false;
+                    // TODO: Sonraki sahneye geç (şimdilik sadece durduruyoruz)
+                }
+            } else {
+                // Debug: carX null ise log
+                // console.log('[updateCar] carX null, hareket edemiyor');
+            }
+        }
+        
         // Tekne güncelleme (rotada hareket)
         function updateBoat() {
             // island sahnesinde: iskeleden adaya
@@ -5281,6 +5490,7 @@
                 updateCamera();  // Kamerayı her zaman güncelle
                 updateAnimation(sprites.raccoon);  // Rakun animasyonu güncelle
                 updateHedgehogAnimation();  // Kirpi animasyonu güncelle
+                updateCar();  // Araba hareketi (returningHome sahnesi)
 
                 // Draw - Scene state'e göre farklı çizim
                 if (game.sceneState === 'opening') {

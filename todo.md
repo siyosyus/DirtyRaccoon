@@ -303,3 +303,34 @@
 - Gölge efektleri ve derinlik
 - Araba boyutu: 160x55 piksel
 - Araba pozisyonu: Hotel merkezinden 80px sola (hotel önünde ortalanmış)
+
+### 19. Arabaya Binme ve Hareket Sistemi
+
+#### Kirpi Yönlendirme Sistemi
+- returningHome sahnesinde kirpi arabaya doğru otomatik hareket ediyor
+- Kirpi'nin diyalog baloncuğu: "Hadi doğru arabaya! Ama sen sür olur mu ben biraz uyuyacağım. :)"
+- Kirpi ekrandan çıkmamak için durma mantığı (onIsland ile aynı)
+- Kirpi arabaya ulaşınca bekliyor
+
+#### Araba Etkileşim Sistemi
+- Arabanın önüne yaklaşınca "E" sembolü görünüyor (evin yüksekliğinde +20px)
+- E tuşuna basınca arabaya binme diyalogu açılıyor
+- Diyalog metni: "Evet boncuk, arabaya geldik. Hadi hazırsan yola çıkalım.💕"
+- "Hadi gidelim" butonuna tıklandığında karakterler kayboluyor ve araba hareket ediyor
+
+#### Araba Hareket Animasyonu
+- `game.carMoving` flag'i ile araba hareket kontrolü
+- Araba sağa doğru (+x yönünde) 5 piksel/frame hızında hareket ediyor
+- Kamera arabayı takip ediyor (arabaya kilitleniyor)
+- Araba ekrandan çıktığında hareket duruyor
+- Karakterler arabaya binince görünmüyor (`game.carEntered` kontrolü)
+
+#### Görsel Düzenlemeler
+- Çizim sırası düzeltildi: Araba önce, karakterler sonra çiziliyor (rakun her zaman önde)
+- Yol ekranın sonuna kadar uzatıldı (kamera pozisyonu + canvas genişliği + 500px)
+- Ekranın sonundaki boşluk dolduruldu
+
+#### Kod İyileştirmeleri
+- `updateCar()` fonksiyonu eklendi (araba hareket güncellemesi)
+- `carX` pozisyonu arabaya binildikten sonra yeniden hesaplanmıyor (hareket için)
+- Kamera sistemi arabaya binme durumunu destekliyor
