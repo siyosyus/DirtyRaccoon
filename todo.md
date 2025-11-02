@@ -236,3 +236,43 @@
 - onIsland sahnesinde kamera sınırları iskele sonundan 800 piksel daha sağa genişletildi
 - Böylece deniz, iskele ve tekne tamamen görünür oluyor
 - Karakter sınırları iskele başlangıcında, kamera iskele sonundan 800 piksel sonrasına kadar takip edebiliyor
+
+### 14. Tekne Rotası ve Ada Sınırları
+
+#### Tekne Rotası Ada Sınırları İyileştirmesi
+- Tekne rotası kontrol noktaları adanın üzerine çıkmayacak şekilde güncellendi
+- Ada sınır kontrolü eklendi (`isPointOnIsland` fonksiyonu)
+- Tüm kontrol noktaları ada'nın dışında kalacak şekilde ayarlandı
+- Tekne ada kenarına yakın ama üzerine çıkmadan hareket ediyor
+
+### 15. onIsland Sahnesi Zemin Değişikliği
+
+#### Zemin Görseli Güncellendi
+- onIsland sahnesindeki zemin `ground_pref.png` yerine ilk sahnedeki gibi gri kaldırım olarak değiştirildi
+- X ve Y pozisyonları korundu, sadece görsel değişti
+- İlk sahnedeki kaldırım stili (#C0C0C0 gri zemin, üst ve alt gölge efektleri) kullanılıyor
+
+### 16. Caffè Nero E İşareti Pozisyonu
+
+#### Etkileşim İşareti İyileştirmesi
+- Caffè Nero binası için "E" işareti binanın üst kenarından 10 pixel yukarıda görünecek şekilde ayarlandı
+- Bina yüksekliği dinamik olarak hesaplanıyor
+- İşaret binanın gerçek pozisyonuna göre doğru konumda görünüyor
+
+### 17. onIsland İskele Etkileşimi ve Ters Tekne Rotası
+
+#### İskele Etkileşimi Eklendi
+- onIsland sahnesinde otel etkileşimi tamamlandıktan sonra iskeleye yaklaşınca "E" işareti görünüyor
+- İskele etkileşimi için `openIslandDockDialog()` fonksiyonu eklendi
+- Diyalog metni: "Büyükada ilk tatilimizi yapmaya gidiyoruz. Çok ilginç değil mi? Ilk defa bugün görüşüyoruz ama sanki yıllardır birbirimizi tanıyor gibiyiz."
+- Cevap: "Evet, gerçekten"
+- Diyalog kapatıldığında `islandReturn` sahnesine geçiliyor
+
+#### Ters Tekne Rotası
+- `getBoatPositionReturn()` fonksiyonu eklendi - adadan iskeleye giden ters rota
+- Yeni sahne durumu: `islandReturn` (adadan iskeleye dönüş)
+- Tekne rotası orijinal rotanın tam tersi olarak hesaplanıyor
+- Tekne adadan başlayıp iskeleye gidiyor (ilk rota: iskeleden adaya)
+- Tekne iskeleye ulaştığında `gameplay` sahnesine geri dönülüyor
+- `updateBoat()` fonksiyonu hem `island` hem `islandReturn` sahneleri için çalışıyor
+- `drawBoat()` fonksiyonu her iki sahne için de tekne çiziyor

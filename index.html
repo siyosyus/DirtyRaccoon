@@ -333,7 +333,7 @@
             state: 'intro',  // 'intro', 'verification', 'playing', 'finished'
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
-            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland'
+            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn'
             openingDialogShown: false,  // Açılış dialogu gösterildi mi?
             caffeNeroDialogShown: false,  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
             dockDialogShown: false,  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
@@ -636,9 +636,69 @@
                     return;
                 }
             }
+            
+            // İskele etkileşimi (onIsland sahnesi) - Ada'dan geri dönüş
+            if (game.sceneState === 'onIsland' && game.innEntered) {
+                // onIsland sahnesindeki iskele pozisyonunu hesapla
+                const islandXWorld = canvas.width / 2;
+                const houseStartX = islandXWorld - 400;
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+                
+                // Tüm evlerin toplam genişliğini hesapla
+                const housesPattern = [
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.hotel, name: 'hotel' },
+                    { sprite: sprites.island.home1, name: 'home1' }
+                ];
+                
+                let totalHousesWidth = 0;
+                for (let i = 0; i < housesPattern.length; i++) {
+                    const house = housesPattern[i];
+                    if (house.sprite && house.sprite.complete) {
+                        const houseWidth = house.sprite.width * houseScale;
+                        totalHousesWidth += houseWidth;
+                        if (i < housesPattern.length - 1) {
+                            totalHousesWidth += houseSpacing;
+                        }
+                    }
+                }
+                
+                const lastHouseRight = houseStartX + totalHousesWidth;
+                const islandDockX = lastHouseRight + 100; // İskele başlangıcı
+                const islandDockWidth = 180;
+                const islandDockY = GROUND_LEVEL;
+                
+                // İskele başlangıcı ve bitişi kontrolü
+                const dockStartX = islandDockX;
+                const dockEndX = islandDockX + islandDockWidth;
+                
+                // Rakun iskelenin önünde veya üzerinde mi? (daha geniş kontrol)
+                const isNearDock = (playerCenterX >= dockStartX - 150 && playerCenterX <= dockEndX + 150);
+                const playerOnGround = player.y + player.height >= islandDockY - 10;
+                
+                // Eğer oyuncu iskelenin yakınındaysa ve E tuşuna basıldıysa diyalog aç
+                if (isNearDock && playerOnGround && (keys['e'] || keys['E'])) {
+                    openIslandDockDialog();
+                    return;
+                }
+            }
 
             // Kirpi etkileşimi E tuşu ile kaldırıldı - sadece opening sahnesinde otomatik açılıyor
             // (E tuşu ile kirpi'ye yaklaşınca diyalog açılmıyor)
+        }
+
+        // Open Island Dock Dialog (onIsland sahnesi için)
+        function openIslandDockDialog() {
+            dialog.isOpen = true;
+            dialog.isHedgehogDialog = false;
+            dialog.currentObject = 'islandDock'; // Ada iskelesi diyaloğu için identifier
+            dialog.text = 'Ilk tatilimizin sonuna gelmiş bulunuyoruz. Fakat sen de çok iyi bilirsin ki bazı tatiller vardır ve yapılırlar. Bu ilk tatilimizde ve yeri hep ayrı kalacak. Şimdi seni başka başka anılara götürme zamanı. Ama önce eve dönüp arabayı almamız lazım.';
+            dialog.text2 = '';
+            dialog.answers = ['Hadi gidelim!!'];
         }
 
         // Open Caffè Nero dialog
@@ -831,6 +891,16 @@
                 game.sceneState = 'island';
                 // Tekne animasyonunu başlat
                 initializeBoat();
+                return;
+            }
+            
+            // Ada iskelesi diyaloğu ise (onIsland sahnesinden dönüş)
+            if (!dialog.isHedgehogDialog && dialog.currentObject === 'islandDock') {
+                closeDialog();
+                // Yeni sahneye geç: Ada'dan dönüş sahnesi (ters rota)
+                game.sceneState = 'islandReturn';
+                // Tekne animasyonunu başlat (ters rota ile)
+                initializeBoatReturn();
                 return;
             }
         }
@@ -2236,6 +2306,12 @@
             boat.routeProgress = 0;
             boat.isMoving = true;
         }
+        
+        // Ters tekne rotası başlatma (adadan iskeleye)
+        function initializeBoatReturn() {
+            boat.routeProgress = 0;
+            boat.isMoving = true;
+        }
 
         // Ada sahnesi başlatma (karakterler adaya indiğinde)
         function initializeOnIslandScene() {
@@ -2835,6 +2911,31 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(dockScreenX, dockScreenY, islandDockWidth, dockPlatformHeight);
                 
+                // "E" etkileşim sembolü (sadece otel etkileşimi tamamlandıysa ve diyalog açık değilse)
+                if (game.innEntered && !dialog.isOpen) {
+                    const playerCenterX = player.x + player.width / 2;
+                    const dockStartX = islandDockX;
+                    const dockEndX = islandDockX + islandDockWidth;
+                    const isNearDock = (playerCenterX >= dockStartX - 150 && playerCenterX <= dockEndX + 150);
+                    const playerOnGround = player.y + player.height >= GROUND_LEVEL - 10;
+                    
+                    if (isNearDock && playerOnGround) {
+                        const dockCenterX = islandDockX + islandDockWidth / 2;
+                        const dockTextY = dockScreenY - 30; // İskele üstünde
+                        
+                        ctx.fillStyle = 'white';
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 3;
+                        ctx.font = 'bold 20px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.strokeText('E', dockCenterX - camera.x, dockTextY);
+                        ctx.fillText('E', dockCenterX - camera.x, dockTextY);
+                        ctx.textAlign = 'left'; // Reset
+                        ctx.textBaseline = 'alphabetic'; // Reset
+                    }
+                }
+                
                 // Tekne (iskeleye bağlı)
                 const dockEndX = dockScreenX + islandDockWidth;
                 const dockEndY = dockScreenY + dockPlatformHeight / 2;
@@ -3084,40 +3185,193 @@
             
             return { x, y };
         }
+        
+        // Tekne rotası hesaplama (TERS - Adadan iskeleye)
+        function getBoatPositionReturn(progress) {
+            // Ada pozisyonu (onIsland sahnesindeki iskele pozisyonu yakınında)
+            const islandXWorld = canvas.width / 2;
+            const houseStartX = islandXWorld - 400;
+            const houseSpacing = 40;
+            const houseScale = 1.35;
+            
+            // Tüm evlerin toplam genişliğini hesapla
+            const housesPattern = [
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.hotel, name: 'hotel' },
+                { sprite: sprites.island.home1, name: 'home1' }
+            ];
+            
+            let totalHousesWidth = 0;
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+                if (house.sprite && house.sprite.complete) {
+                    const houseWidth = house.sprite.width * houseScale;
+                    totalHousesWidth += houseWidth;
+                    if (i < housesPattern.length - 1) {
+                        totalHousesWidth += houseSpacing;
+                    }
+                }
+            }
+            
+            const lastHouseRight = houseStartX + totalHousesWidth;
+            
+            // Ada başlangıç pozisyonu (adanın sol kenarı)
+            const islandX = canvas.width - 210; // Ada merkezi
+            const islandY = 150;
+            const islandRadius = 200;
+            const islandRadiusY = islandRadius * 0.6;
+            const islandMinX = islandX - islandRadius;
+            const islandMaxY = islandY + islandRadiusY;
+            
+            // Ada'dan başla (ilk sahnedeki rotanın tersi)
+            const startX = islandMinX - 8; // Ada sol kenarından 8px sola
+            const startY = islandMaxY + 5; // Ada alt kenarından 5px aşağı
+            
+            // İskele hedef pozisyonu (ilk sahnedeki iskele)
+            const dockX = 2;
+            const dockY = canvas.height - 50;
+            const dockWidth = 120;
+            const endX = dockX + dockWidth + 3; // İskele sonundan biraz önce
+            const endY = dockY - 30; // İskele seviyesinin biraz üstü
+            
+            // TERS KONTROL NOKTALARI (orijinal rotanın tersi)
+            // Üçüncü bölümün tersi (adanın altından başla, sola git)
+            const cp7X = islandMinX - 12;
+            const cp7Y = islandMaxY + 10;
+            const cp6X = islandMinX - 15;
+            const cp6Y = islandMaxY + 15;
+            
+            // İkinci bölümün tersi (ada'nın sol tarafından geçerek)
+            const cp5X = islandMinX - 40;
+            const cp5Y = islandMaxY + 20;
+            const cp4X = islandMinX - 60;
+            const cp4Y = islandMaxY + 30;
+            const cp3X = islandMinX - 80;
+            const cp3Y = canvas.height - 50;
+            
+            // İlk bölümün tersi (sağdan sola, iskeleye doğru)
+            const cp2X = 250;
+            const cp2Y = canvas.height - 30;
+            const cp1X = 150;
+            const cp1Y = canvas.height - 40;
+            
+            // Bezier curve ile TERS kıvrımlı rota (3 bezier curve birleştiriyoruz)
+            let t = progress;
+            let x, y;
+            
+            if (t < 0.34) {
+                // İlk bölüm: Ada'dan sola doğru (ters üçüncü bölüm)
+                t = t / 0.34;
+                const t1 = 1 - t;
+                x = startX * t1 * t1 * t1 + 
+                    cp7X * 3 * t1 * t1 * t + 
+                    cp6X * 3 * t1 * t * t + 
+                    cp5X * t * t * t;
+                y = startY * t1 * t1 * t1 + 
+                    cp7Y * 3 * t1 * t1 * t + 
+                    cp6Y * 3 * t1 * t * t + 
+                    cp5Y * t * t * t;
+            } else if (t < 0.67) {
+                // İkinci bölüm: Sola, ada'nın solundan geçerek (ters ikinci bölüm)
+                t = (t - 0.34) / 0.33;
+                const t1 = 1 - t;
+                x = cp5X * t1 * t1 * t1 + 
+                    cp4X * 3 * t1 * t1 * t + 
+                    cp3X * 3 * t1 * t * t + 
+                    cp2X * t * t * t;
+                y = cp5Y * t1 * t1 * t1 + 
+                    cp4Y * 3 * t1 * t1 * t + 
+                    cp3Y * 3 * t1 * t * t + 
+                    cp2Y * t * t * t;
+            } else {
+                // Üçüncü bölüm: Sola doğru, iskeleye yaklaşma (ters ilk bölüm)
+                t = (t - 0.67) / 0.33;
+                const t1 = 1 - t;
+                x = cp2X * t1 * t1 * t1 + 
+                    cp1X * 3 * t1 * t1 * t + 
+                    endX * 3 * t1 * t * t + 
+                    endX * t * t * t;
+                y = cp2Y * t1 * t1 * t1 + 
+                    cp1Y * 3 * t1 * t1 * t + 
+                    endY * 3 * t1 * t * t + 
+                    endY * t * t * t;
+            }
+            
+            return { x, y };
+        }
 
         // Tekne güncelleme (rotada hareket)
         function updateBoat() {
-            // Sadece island sahnesinde çalış
-            if (game.sceneState !== 'island') return;
-            
-            if (!boat.isMoving) return;
-            
-            boat.routeProgress += boat.speed;
-            
-            if (boat.routeProgress >= 1) {
-                boat.routeProgress = 1;
-                boat.isMoving = false; // Rotanın sonuna ulaştı
+            // island sahnesinde: iskeleden adaya
+            if (game.sceneState === 'island') {
+                if (!boat.isMoving) return;
                 
-                // Tekne adaya ulaştı, yeni sahneye geç
-                game.sceneState = 'onIsland';
-                initializeOnIslandScene();
-                return; // Geçiş yapıldı, daha fazla güncelleme yapma
+                boat.routeProgress += boat.speed;
+                
+                if (boat.routeProgress >= 1) {
+                    boat.routeProgress = 1;
+                    boat.isMoving = false;
+                    
+                    // Tekne adaya ulaştı, yeni sahneye geç
+                    game.sceneState = 'onIsland';
+                    initializeOnIslandScene();
+                    return;
+                }
+                
+                // Rotadan pozisyonu al
+                const pos = getBoatPosition(boat.routeProgress);
+                boat.x = pos.x;
+                boat.y = pos.y;
+                
+                // Teknenin açısını hesapla (hareket yönüne göre)
+                const nextProgress = Math.min(1, boat.routeProgress + 0.01);
+                const nextPos = getBoatPosition(nextProgress);
+                boat.angle = Math.atan2(nextPos.y - boat.y, nextPos.x - boat.x);
+                return;
             }
             
-            // Teknenin pozisyonunu hesapla
-            const pos = getBoatPosition(boat.routeProgress);
-            boat.x = pos.x;
-            boat.y = pos.y;
+            // islandReturn sahnesinde: adadan iskeleye (ters rota)
+            if (game.sceneState === 'islandReturn') {
+                if (!boat.isMoving) return;
+                
+                boat.routeProgress += boat.speed;
+                
+                if (boat.routeProgress >= 1) {
+                    boat.routeProgress = 1;
+                    boat.isMoving = false;
+                    
+                    // Tekne iskeleye ulaştı, gameplay sahnesine geri dön
+                    game.sceneState = 'gameplay';
+                    // Karakterleri iskele pozisyonuna yerleştir
+                    if (dockX !== null) {
+                        player.x = dockX - player.width - 20;
+                        hedgehog.x = dockX - hedgehog.width - 140;
+                    }
+                    return;
+                }
+                
+                // Rotadan pozisyonu al (ters rota)
+                const pos = getBoatPositionReturn(boat.routeProgress);
+                boat.x = pos.x;
+                boat.y = pos.y;
+                
+                // Teknenin açısını hesapla (hareket yönüne göre)
+                const nextProgress = Math.min(1, boat.routeProgress + 0.01);
+                const nextPos = getBoatPositionReturn(nextProgress);
+                boat.angle = Math.atan2(nextPos.y - boat.y, nextPos.x - boat.x);
+                return;
+            }
             
-            // Teknenin açısını hesapla (hareket yönüne göre)
-            const nextProgress = Math.min(1, boat.routeProgress + 0.01);
-            const nextPos = getBoatPosition(nextProgress);
-            boat.angle = Math.atan2(nextPos.y - boat.y, nextPos.x - boat.x);
+            // Diğer sahnelerde tekne hareket etmez
+            return;
         }
 
         // Tekne çizme
         function drawBoat() {
-            if (game.sceneState !== 'island') return;
+            if (game.sceneState !== 'island' && game.sceneState !== 'islandReturn') return;
             
             updateBoat();
             
@@ -3880,8 +4134,9 @@
                 drawPlayer();
 
                 ctx.restore();
-                } else if (game.sceneState === 'island') {
+                } else if (game.sceneState === 'island' || game.sceneState === 'islandReturn') {
                     // Ada sahnesi: Deniz ve ada (tekne hareket ederken)
+                    // islandReturn: Adadan iskeleye dönüş (ters rota)
                     drawIsland();
                     // Karakterler ada sahnesinde görünmeyebilir veya tekne üzerinde olabilir
                     // Şimdilik sadece ada çiziyoruz
