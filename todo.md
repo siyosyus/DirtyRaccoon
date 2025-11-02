@@ -379,3 +379,38 @@
 - Segment interpolasyonu: Büyük boşluklar için ara noktalar
 - Toplam 300+ segment ile yüksek çözünürlüklü rota
 - Araba rotası ile yol segmentleri birebir eşleşiyor
+
+### 21. Datça Sahnesi (datca)
+
+#### Datça Sahnesi Oluşturuldu
+- Yeni sahne durumu: `datca` (deniz kenarı kasaba sahnesi)
+- Istanbul-Datça yolculuğu tamamlandığında otomatik geçiş
+- Sahne yapısı: `onIsland` ile benzer (evler, dekorasyonlar, zemin)
+- Evler pattern'i: home1, home2, home1, home2, hotel, home1
+- Zemin 250 piksel yukarı kaydırıldı (deniz kenarı kasaba görünümü için)
+- Dekorasyon sistemi `onIsland` ile aynı mantıkla çalışıyor
+- Çitler ve evler `onIsland` ile aynı görsel stilde
+
+#### Araba Giriş Animasyonu
+- Karakterler arabayla Datça sahnesine giriş yapıyor
+- Araba sahnenin solundan (ekran dışından) başlıyor
+- Araba hotel'in sol çitinin 200 piksel önüne kadar gidiyor
+- Araba hedefine ulaştığında karakterler arabadan iniyor
+- Kamera arabayı takip ediyor (merkeze hizalı)
+
+#### Araba Sistemi
+- `updateDatcaCar()` fonksiyonu ile araba hareket güncellemesi
+- Araba hızı: 5 piksel/frame
+- `game.datcaCarX` ve `game.datcaCarTargetX` ile pozisyon kontrolü
+- `game.datcaCarMoving` ve `game.datcaCarArrived` flag'leri
+- Karakterler arabadayken (`game.datcaCharactersInCar`) hareket kontrollü
+
+#### Modern Araba Görseli
+- `drawDatcaCar()` fonksiyonu ile modern beyaz araba çizimi
+- `returningHome` sahnesindeki araba ile aynı görsel stil
+- Yuvarlatılmış köşeler, gradient efektleri, detaylar
+
+#### Kod İyileştirmeleri
+- Tüm debug console.log'ları kaldırıldı (production için)
+- Hotel pozisyon hesaplama: Sprite yüklenmediyse varsayılan değerler kullanılıyor
+- Hotel hedef pozisyonu: Sol çit pozisyonuna göre hesaplanıyor
