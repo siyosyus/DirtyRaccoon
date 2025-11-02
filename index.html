@@ -263,12 +263,25 @@
             gravity: 0.6,
             friction: 0.8,
             mapWidth: 5500,  // Çok geniş harita (15 soru için)
-            state: 'intro',  // 'intro', 'verification', 'playing', 'finished'
+            state: 'playing',  // 'intro', 'verification', 'playing', 'finished' - TEST: direkt 'playing'
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
-            sceneState: 'opening',  // 'opening', 'gameplay' - oyun içi sahne durumu
+            sceneState: 'island',  // 'opening', 'gameplay', 'island' - TEST: direkt 'island'
             openingDialogShown: false,  // Açılış dialogu gösterildi mi?
-            caffeNeroDialogShown: false  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
+            caffeNeroDialogShown: false,  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
+            dockDialogShown: false  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
+        };
+
+        // Tekne objesi (ada sahnesi için)
+        const boat = {
+            x: 0,
+            y: 0,
+            width: 80,
+            height: 40,
+            angle: 0, // Rota açısı (radyan)
+            routeProgress: 0, // 0-1 arası rota ilerlemesi
+            speed: 0.0015, // Rota ilerleme hızı (her frame)
+            isMoving: false
         };
 
         // Verification quiz (giriş doğrulama sorusu)
@@ -450,28 +463,63 @@
                 return;
             }
 
+            const playerCenterX = player.x + player.width / 2;
+            const playerCenterY = player.y + player.height / 2;
+
             // Check Caffè Nero binası etkileşimi (öncelikli)
             if (caffeNeroX !== null && caffeNeroWidth !== null && game.sceneState === 'gameplay') {
                 // Eğer diyalog daha önce açıldıysa tekrar açma
                 if (game.caffeNeroDialogShown) {
+                    // Caffè Nero kontrolünü atla, iskele kontrolüne geç
+                } else {
+                    // Bina merkezi ve pozisyonu
+                    const buildingCenterX = caffeNeroX + caffeNeroWidth / 2;
+                    const buildingY = 550; // Ground level
+                    
+                    // Rakun binanın önünde mi? (X pozisyonu kontrolü)
+                    const distanceX = Math.abs(playerCenterX - buildingCenterX);
+                    const distanceToBuilding = distanceX;
+                    
+                    // Etkileşim mesafesi: binanın önünde, merkezden 100px içinde
+                    if (distanceToBuilding < 100 && player.y + player.height >= buildingY - 10) {
+                        openCaffeNeroDialog();
+                return;
+                    }
+                }
+            }
+
+            // Check İskele etkileşimi
+            // İskele pozisyonunu hesapla (eğer henüz hesaplanmadıysa)
+            if (dockX === null && game.sceneState === 'gameplay') {
+                calculateBuildingPositions();
+            }
+            
+            if (dockX !== null && game.sceneState === 'gameplay') {
+                // Eğer diyalog daha önce açıldıysa tekrar açma
+                if (game.dockDialogShown) {
                     return;
                 }
 
-            const playerCenterX = player.x + player.width / 2;
-            const playerCenterY = player.y + player.height / 2;
+                // İskele merkezi ve pozisyonu
+                const dockCenterX = dockX + dockWidth / 2;
+                const dockY = 550; // Ground level
                 
-                // Bina merkezi ve pozisyonu
-                const buildingCenterX = caffeNeroX + caffeNeroWidth / 2;
-                const buildingY = 550; // Ground level
+                // Rakun iskelenin önünde mi? (X pozisyonu kontrolü)
+                const distanceX = Math.abs(playerCenterX - dockCenterX);
+                const distanceToDock = distanceX;
                 
-                // Rakun binanın önünde mi? (X pozisyonu kontrolü)
-                const distanceX = Math.abs(playerCenterX - buildingCenterX);
-                const distanceToBuilding = distanceX;
+                // İskele başlangıcı ve bitişi kontrolü
+                const dockStartX = dockX;
+                const dockEndX = dockX + dockWidth;
                 
-                // Etkileşim mesafesi: binanın önünde, merkezden 100px içinde
-                if (distanceToBuilding < 100 && player.y + player.height >= buildingY - 10) {
-                    openCaffeNeroDialog();
-                return;
+                // Rakun iskelenin önünde veya üzerinde mi? (daha geniş kontrol)
+                const isNearDock = (playerCenterX >= dockStartX - 150 && playerCenterX <= dockEndX + 150);
+                const playerOnGround = player.y + player.height >= dockY - 10;
+                
+                // Etkileşim mesafesi: iskelenin önünde, merkezden 150px içinde veya iskele alanında
+                if (isNearDock && playerOnGround) {
+                    openDockDialog();
+                    return;
                 }
             }
 
@@ -486,6 +534,16 @@
             dialog.text = 'Bir Orta boy Latte bir tane de filtre kahve alabilir miyiz?';
             dialog.text2 = '';
             dialog.answers = ['Tabii ki! ☕'];
+            dialog.currentObject = null;
+        }
+
+        // Open Dock dialog (İskele diyaloğu)
+        function openDockDialog() {
+            dialog.isOpen = true;
+            dialog.isHedgehogDialog = false;
+            dialog.text = 'Büyükada ilk tatilimizi yapmaya gidiyoruz. Çok ilginç değil mi? Ilk defa bugün görüşüyoruz ama sanki yıllardır birbirimizi tanıyor gibiyiz.';
+            dialog.text2 = '';
+            dialog.answers = ['Evet, gerçekten! 💕'];
             dialog.currentObject = null;
         }
 
@@ -552,9 +610,6 @@
                         // Binanın önüne git (bina merkezinden biraz önce)
                         hedgehog.targetX = caffeNeroX + (caffeNeroWidth / 2) - hedgehog.width - 30;
                         hedgehog.isMoving = true;
-                        console.log('Hedgehog target set:', hedgehog.targetX, 'CaffeNeroX:', caffeNeroX);
-                    } else {
-                        console.log('CaffeNeroX is null, cannot set target. Will retry in updateHedgehog.');
                     }
                     
                     // İlk frame'de baloncuk gösterilmesini engelle (kirpi önce hedefe gitmeli)
@@ -575,7 +630,7 @@
                 
                 // Kirpi'nin yeni diyalog baloncuğunu göster ve iskeleye doğru hareket etmesine izin ver
                 hedgehog.showSpeechBubble = true;
-                hedgehog.speechText = "Hadi koooooooş!! Vapuru kaçıracağız..";
+                hedgehog.speechText = "Hadi koooooooş!! Vapuru kaçıracağız..Senin kadar hızlı koşamıyorum yahu beni bekle!!";
                 hedgehog.canMoveWithBubble = true; // Baloncuk gösterilirken hareket etmeye devam et
                 hedgehog.isMoving = true; // Hareket etmeye başla
                 
@@ -588,6 +643,17 @@
                     // Henüz hesaplanmadıysa, ileri doğru hareket et
                     hedgehog.targetX = player.x + 2000;
             }
+                return;
+            }
+
+            // İskele diyaloğu ise sadece kapat ve tekrar açılmaması için flag'i set et
+            if (!dialog.isHedgehogDialog && dialog.currentObject === null && dialog.text.includes('Büyükada')) {
+                game.dockDialogShown = true; // Diyalog bir kez açıldı, tekrar açılmasın
+            closeDialog();
+                // Yeni sahneye geç: Ada sahnesi
+                game.sceneState = 'island';
+                // Tekne animasyonunu başlat
+                initializeBoat();
                 return;
             }
         }
@@ -774,18 +840,39 @@
                     if (!hedgehog.canMoveWithBubble) {
                         hedgehog.showSpeechBubble = false;
                     }
-                    console.log('Player started moving, resuming target');
+                    
+                    // Eğer hedef yoksa ve canMoveWithBubble true ise, yeni hedef belirle
+                    if (hedgehog.targetX === null && hedgehog.canMoveWithBubble) {
+                        // İskele pozisyonunu hesapla (eğer henüz hesaplanmadıysa)
+                        if (dockX === null) {
+                            calculateBuildingPositions();
+                        }
+                        // Hedef: Son binanın sonu veya iskele önü
+                        if (lastBuildingX !== null) {
+                            hedgehog.targetX = lastBuildingX - hedgehog.width - 10;
+                        } else if (dockX !== null) {
+                            hedgehog.targetX = dockX - hedgehog.width - 10;
+                        } else {
+                            // Son çare: İleri doğru hareket et
+                            hedgehog.targetX = hedgehog.x + 2000;
+                        }
+                    }
+                    
+                    // Eğer hedef varsa, tekrar hareket etmeye başla
+                    if (hedgehog.targetX !== null) {
+                hedgehog.isMoving = true;
+                    }
                 }
                 
                 // Eğer ekran hedefinde bekliyorsa, ekran hedefinde kal
                 if (hedgehog.waitingForPlayer && hedgehog.screenTargetX !== null) {
                     // Ekran pozisyonunu her frame güncelle (kamera hareket edebilir)
-                    const targetScreenX = canvas.width * 0.7;
+                    // canMoveWithBubble true ise %85, değilse %70 (Caffè Nero'dan önce)
+                    const targetScreenX = hedgehog.canMoveWithBubble ? canvas.width * 0.85 : canvas.width * 0.7;
                     const targetWorldX = camera.x + targetScreenX;
                     hedgehog.screenTargetX = targetWorldX; // Hedefi güncelle
                     
                     const distanceToScreenTarget = Math.abs(hedgehog.x - targetWorldX);
-                    console.log('Waiting for player - current:', hedgehog.x, 'target:', targetWorldX, 'distance:', distanceToScreenTarget);
                     
                     if (distanceToScreenTarget > 10) {
                         // Ekran hedefine doğru hareket et
@@ -795,12 +882,13 @@
                         } else {
                             hedgehog.x -= hedgehog.speed;
                         }
-                        console.log('Moving to screen target:', hedgehog.x);
                     } else {
                         // Ekran hedefinde dur
                         hedgehog.isMoving = false;
-                        hedgehog.showSpeechBubble = true;
-                        console.log('Reached screen target, showing bubble');
+                        // canMoveWithBubble true ise baloncuk zaten gösteriliyor, false ise göster
+                        if (!hedgehog.canMoveWithBubble) {
+                            hedgehog.showSpeechBubble = true;
+                        }
                     }
                     return;
                 }
@@ -810,7 +898,6 @@
                     hedgehog.targetX = caffeNeroX + (caffeNeroWidth / 2) - hedgehog.width - 30;
                     hedgehog.isMoving = true;
                     hedgehog.showSpeechBubble = false; // Henüz baloncuk gösterme
-                    console.log('Hedgehog target set in updateHedgehog:', hedgehog.targetX);
                 }
                 
                 // Caffè Nero binasına gitme mantığı (öncelikli - eğer hedef varsa)
@@ -852,7 +939,6 @@
                             hedgehog.waitingForPlayer = true;
                             
                             const distanceToTarget = Math.abs(hedgehog.x - targetWorldX);
-                            console.log('Hedgehog check - current:', hedgehog.x, 'target:', targetWorldX, 'distance:', distanceToTarget, 'camera.x:', camera.x);
                             
                             if (distanceToTarget > 10) {
                 // Hedefe doğru hareket et
@@ -874,9 +960,6 @@
                                     if (!hedgehog.canMoveWithBubble) {
                                         hedgehog.showSpeechBubble = true;
                                     }
-                                    console.log('Hedgehog reached screen position, showing bubble');
-                                } else {
-                                    console.log('Hedgehog moving to screen position 70%:', hedgehog.x, targetWorldX);
                                 }
                             } else {
                                 // Hedefe ulaşıldı, dur ama baloncuk gösterilmeye devam etsin
@@ -886,7 +969,6 @@
                                     hedgehog.showSpeechBubble = true;
                                 }
                                 hedgehog.targetX = null; // Caffè Nero hedefini iptal et
-                                console.log('Hedgehog reached screen position, showing bubble');
                             }
                             return;
                         }
@@ -921,7 +1003,10 @@
                 } else {
                                 // Hedefe ulaşıldı, dur (ama baloncuk gösterilmeye devam etsin)
                                 hedgehog.isMoving = false;
-                                hedgehog.targetX = hedgehog.x + 2000; // Yeni hedef belirle
+                                // Rakunun hareket etmesini bekle (canMoveWithBubble true olsa bile)
+                                hedgehog.waitingForPlayer = true;
+                                hedgehog.screenTargetX = targetWorldX; // Ekran pozisyonunu sakla
+                                hedgehog.targetX = hedgehog.x + 2000; // Yeni hedef belirle (rakun hareket edince devam etmek için)
                             }
                             return;
                         }
@@ -1165,12 +1250,25 @@
             if (game.sceneState === 'gameplay' && hedgehog.showSpeechBubble) {
                 const bubbleX = screenX + hedgehog.width / 2;
                 const bubbleY = screenY - 50; // Kirpi'nin kafasının üstünde
-                const bubbleWidth = 280; // Yeni metin daha uzun, genişlik artırıldı
-                const bubbleHeight = 60; // Yeni metin için yükseklik artırıldı
-                const bubbleRadius = 10;
                 const text = hedgehog.speechText; // Dinamik metin
+                const bubbleRadius = 10;
                 
                 ctx.save();
+                
+                // Metin boyutunu ve sarmasını hesapla
+                ctx.font = 'bold 14px Arial';
+                const textPadding = 15;
+                const maxBubbleWidth = 420; // Maksimum baloncuk genişliği
+                const maxTextWidth = maxBubbleWidth - (textPadding * 2);
+                
+                // Metni sarmala
+                const textLines = wrapText(text, maxTextWidth, 'bold 14px Arial');
+                const lineHeight = 18;
+                const textHeight = textLines.length * lineHeight;
+                
+                // Baloncuk boyutlarını dinamik olarak ayarla
+                const bubbleWidth = Math.min(maxBubbleWidth, Math.max(200, maxTextWidth + (textPadding * 2)));
+                const bubbleHeight = textHeight + (textPadding * 2) + 10;
                 
                 // Baloncuğu çiz (yuvarlatılmış dikdörtgen)
                 ctx.fillStyle = '#FFFFFF';
@@ -1192,33 +1290,18 @@
                 ctx.fill();
                 ctx.stroke();
                 
-                // Metin çiz
+                // Metni çiz (çok satırlı)
                 ctx.fillStyle = '#000000';
                 ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(text, bubbleX, bubbleY - bubbleHeight / 2);
+                ctx.textBaseline = 'top';
+                
+                textLines.forEach((line, index) => {
+                    const lineY = bubbleY - bubbleHeight + textPadding + 5 + (index * lineHeight);
+                    ctx.fillText(line, bubbleX, lineY);
+                });
                 
                 ctx.restore();
-            }
-
-            // Show "E" prompt if player is near - merkez bazlı kontrol
-            const playerCenterX = player.x + player.width / 2;
-            const playerCenterY = player.y + player.height / 2;
-            const hedgehogCenterX = hedgehog.x + hedgehog.width / 2;
-            const hedgehogCenterY = hedgehog.y + hedgehog.height / 2;
-
-            const distanceX = Math.abs(playerCenterX - hedgehogCenterX);
-            const distanceY = Math.abs(playerCenterY - hedgehogCenterY);
-
-            if (distanceX < 80 && distanceY < 80 && !hedgehog.showSpeechBubble) {
-                ctx.fillStyle = 'white';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 3;
-                ctx.font = 'bold 20px Arial';
-                ctx.textAlign = 'center';
-                ctx.strokeText('E', screenX + hedgehog.width/2, screenY - 10);
-                ctx.fillText('E', screenX + hedgehog.width/2, screenY - 10);
             }
         }
 
@@ -1428,6 +1511,353 @@
                 ctx.ellipse(boatX + boatWidth / 2, boatY + boatHeight + 5, boatWidth / 2, boatHeight / 2 - 5, 0, 0, Math.PI, false);
                 ctx.fill();
             }
+
+            // Show "E" prompt for dock if player is near
+            if (game.sceneState === 'gameplay' && !dialog.isOpen && !game.dockDialogShown && dockX !== null) {
+            const playerCenterX = player.x + player.width / 2;
+                const dockCenterX = dockX + dockWidth / 2;
+                const distanceX = Math.abs(playerCenterX - dockCenterX);
+
+                if (distanceX < 120 && player.y + player.height >= groundLevel - 10) {
+                    const dockScreenX = dockX + dockWidth / 2 - camera.x;
+                    const dockScreenY = groundLevel - camera.y - 120; // İskele üstünde, görünür pozisyon
+
+                    // Sadece ekranda görünürse çiz
+                    if (dockScreenX >= 0 && dockScreenX <= canvas.width && dockScreenY >= 0 && dockScreenY <= canvas.height) {
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.strokeText('E', dockScreenX, dockScreenY);
+                        ctx.fillText('E', dockScreenX, dockScreenY);
+                        ctx.textAlign = 'left'; // Reset
+                        ctx.textBaseline = 'alphabetic'; // Reset
+                    }
+                }
+            }
+        }
+
+        // Draw island scene (Ada sahnesi)
+        function drawIsland() {
+            // Deniz - tüm ekranı kaplayan
+            ctx.fillStyle = '#4169E1'; // Deniz mavisi
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Deniz dalga efekti
+            ctx.strokeStyle = '#5B9BD5';
+            ctx.lineWidth = 2;
+            const waveCount = Math.floor(canvas.height / 15);
+            for (let i = 0; i < waveCount; i++) {
+                const waveY = i * 15;
+                ctx.beginPath();
+                ctx.moveTo(0, waveY);
+                for (let x = 0; x < canvas.width; x += 30) {
+                    ctx.lineTo(x, waveY + Math.sin(x / 20) * 4);
+                }
+                ctx.stroke();
+            }
+            
+            // İskele (sol alt köşe)
+            const dockX = 2;
+            const dockY = canvas.height - 50;
+            const dockWidth = 120;
+            const dockHeight = 25;
+            
+            // İskele platformu (su üstünde)
+            ctx.fillStyle = '#8B4513'; // Kahverengi ahşap
+            ctx.fillRect(dockX, dockY, dockWidth, dockHeight);
+            
+            // İskele kenarlığı
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(dockX, dockY, dockWidth, dockHeight);
+            
+            // İskele kazıkları (dikey çubuklar)
+            ctx.fillStyle = '#654321';
+            const poleCount = 4;
+            for (let i = 0; i < poleCount; i++) {
+                const poleX = dockX + (i * dockWidth / (poleCount - 1));
+                const poleY = dockY + dockHeight;
+                ctx.fillRect(poleX - 3, poleY, 6, 40);
+            }
+            
+            // Ada - sağ üst köşede
+            const islandX = canvas.width - 210; // Sağ tarafa yakın
+            const islandY = 150; // Üst tarafa yakın
+            const islandRadius = 200; // Ada yarıçapı
+
+            
+            // Ada ana gövdesi (yuvarlak, yeşil)
+            ctx.fillStyle = '#228B22'; // Orman yeşili
+            ctx.beginPath();
+            ctx.ellipse(islandX, islandY, islandRadius, islandRadius * 0.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Ada kenar çizgisi
+            ctx.strokeStyle = '#1F7A1F';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(islandX, islandY, islandRadius, islandRadius * 0.6, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Ada iç detayları (kumsal şeridi)
+            ctx.fillStyle = '#F4A460'; // Kum rengi
+            ctx.beginPath();
+            ctx.ellipse(islandX, islandY + islandRadius * 0.3, islandRadius * 0.9, islandRadius * 0.15, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Ada üzerinde ağaçlar (basit çizim) - sabit pozisyonlar
+            const treePositions = [
+                { x: -120, y: -40 },
+                { x: -60, y: -60 },
+                { x: 0, y: -50 },
+                { x: 60, y: -55 },
+                { x: 120, y: -45 }
+            ];
+            
+            for (let i = 0; i < treePositions.length; i++) {
+                const treeX = islandX + treePositions[i].x;
+                const treeY = islandY + treePositions[i].y;
+                
+                // Ağaç gövdesi
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(treeX - 8, treeY, 16, 40);
+                
+                // Ağaç yaprakları (yuvarlak)
+                ctx.fillStyle = '#2D5016';
+                ctx.beginPath();
+                ctx.arc(treeX, treeY - 10, 25, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Ağaç yaprakları highlight
+                ctx.fillStyle = '#3A6B1F';
+                ctx.beginPath();
+                ctx.arc(treeX - 8, treeY - 15, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Ada üzerinde ev (sağ üst, ada'nın sağ tarafında)
+            const houseX = islandX - 40;
+            const houseY = islandY + 50;
+            
+            // Ev gövdesi
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(houseX - 20, houseY, 40, 30);
+            
+            // Ev çatısı (kırmızı)
+            ctx.fillStyle = '#CC0000';
+            ctx.beginPath();
+            ctx.moveTo(houseX - 30, houseY);
+            ctx.lineTo(houseX, houseY - 20);
+            ctx.lineTo(houseX + 30, houseY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Ev kapısı
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(houseX - 5, houseY + 15, 10, 15);
+            
+            // Ev penceresi
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(houseX - 18, houseY + 5, 8, 8);
+            ctx.fillRect(houseX + 10, houseY + 5, 8, 8);
+            
+            // İkinci ev (ada üzerinde)
+            const house2X = islandX + 40;
+            const house2Y = islandY + 50;
+            
+            // İkinci ev gövdesi
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(house2X - 20, house2Y, 40, 30);
+            
+            // İkinci ev çatısı (kırmızı)
+            ctx.fillStyle = '#CC0000';
+            ctx.beginPath();
+            ctx.moveTo(house2X - 30, house2Y);
+            ctx.lineTo(house2X, house2Y - 20);
+            ctx.lineTo(house2X + 30, house2Y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // İkinci ev kapısı
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(house2X - 5, house2Y + 15, 10, 15);
+            
+            // İkinci ev penceresi
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(house2X - 18, house2Y + 5, 8, 8);
+            ctx.fillRect(house2X + 10, house2Y + 5, 8, 8);
+            
+            // Tekne çiz
+            drawBoat();
+        }
+
+        // Tekne rotası başlatma
+        function initializeBoat() {
+            boat.routeProgress = 0;
+            boat.isMoving = true;
+        }
+
+        // Tekne rotası hesaplama (kıvrımlı bezier curve)
+        function getBoatPosition(progress) {
+            // Ada pozisyonu (sağ üst köşe - drawIsland ile aynı)
+            const islandX = canvas.width - 250;
+            const islandY = 200;
+            
+            // İskele başlangıç pozisyonu (sol alt - iskelenin sonu)
+            const dockX = 2;
+            const dockY = canvas.height - 50;
+            const dockWidth = 120;
+            const startX = dockX + dockWidth + 3; // İskele sonundan biraz önce
+            const startY = dockY - 30; // İskele seviyesinin biraz üstü
+            
+            // Ada hedef pozisyonu (adanin ortasubda, en alt kisim)
+            const endX = islandX;
+            const endY = islandY + 110;
+            
+            // Kontrol noktaları (kıvrımlı rota için - daha uzun ve kıvrımlı)
+            // İlk bölüm: İskeleden aşağı ve sağa
+            const cp1X = 150;
+            const cp1Y = canvas.height - 40; // Aşağı doğru
+            
+            const cp2X = 250;
+            const cp2Y = canvas.height - 30; // Sağa doğru
+            
+            const cp3X = 400;
+            const cp3Y = canvas.height - 25; // Daha sağa, ada'nın altına doğru
+            
+            // İkinci bölüm: Ada'nın altından geçerek
+            const cp4X = 550;
+            const cp4Y = canvas.height - 30; // Ada'nın altına, ortaya doğru
+            
+            const cp5X = 650;
+            const cp5Y = canvas.height - 50; // Daha sağa, yukarı kıvrılma başlangıcı
+            
+            const cp6X = islandX - 80;
+            const cp6Y = canvas.height - 100; // Ada'nın sol tarafına, yukarı
+            
+            // Üçüncü bölüm: Ada'ya yukarıdan yaklaşma
+            const cp7X = islandX - 40;
+            const cp7Y = islandY + 150; // Ada'nın ortasına, alt kısmına doğru
+            
+            // Bezier curve ile kıvrımlı rota (3 bezier curve birleştiriyoruz)
+            let t = progress;
+            let x, y;
+            
+            if (t < 0.33) {
+                // İlk bölüm: İskeleden sağa doğru
+                t = t / 0.33;
+                const t1 = 1 - t;
+                x = startX * t1 * t1 * t1 + 
+                    cp1X * 3 * t1 * t1 * t + 
+                    cp2X * 3 * t1 * t * t + 
+                    cp3X * t * t * t;
+                y = startY * t1 * t1 * t1 + 
+                    cp1Y * 3 * t1 * t1 * t + 
+                    cp2Y * 3 * t1 * t * t + 
+                    cp3Y * t * t * t;
+            } else if (t < 0.66) {
+                // İkinci bölüm: Sağa, ada'nın altına
+                t = (t - 0.33) / 0.33;
+                const t1 = 1 - t;
+                x = cp3X * t1 * t1 * t1 + 
+                    cp4X * 3 * t1 * t1 * t + 
+                    cp5X * 3 * t1 * t * t + 
+                    cp6X * t * t * t;
+                y = cp3Y * t1 * t1 * t1 + 
+                    cp4Y * 3 * t1 * t1 * t + 
+                    cp5Y * 3 * t1 * t * t + 
+                    cp6Y * t * t * t;
+            } else {
+                // Üçüncü bölüm: Ada'ya yukarıdan yaklaşma, ortasına alt kısım
+                t = (t - 0.66) / 0.34;
+                const t1 = 1 - t;
+                // Ara kontrol noktası (ada'nın sol tarafından ortasına geçiş)
+                const cp8X = islandX - 20;
+                const cp8Y = islandY + 80;
+                
+                x = cp6X * t1 * t1 * t1 + 
+                    cp7X * 3 * t1 * t1 * t + 
+                    cp8X * 3 * t1 * t * t + 
+                    endX * t * t * t;
+                y = cp6Y * t1 * t1 * t1 + 
+                    cp7Y * 3 * t1 * t1 * t + 
+                    cp8Y * 3 * t1 * t * t + 
+                    endY * t * t * t;
+            }
+            
+            return { x, y };
+        }
+
+        // Tekne güncelleme (rotada hareket)
+        function updateBoat() {
+            if (!boat.isMoving || game.sceneState !== 'island') return;
+            
+            boat.routeProgress += boat.speed;
+            
+            if (boat.routeProgress >= 1) {
+                boat.routeProgress = 1;
+                boat.isMoving = false; // Rotanın sonuna ulaştı
+            }
+            
+            // Teknenin pozisyonunu hesapla
+            const pos = getBoatPosition(boat.routeProgress);
+            boat.x = pos.x;
+            boat.y = pos.y;
+            
+            // Teknenin açısını hesapla (hareket yönüne göre)
+            const nextProgress = Math.min(1, boat.routeProgress + 0.01);
+            const nextPos = getBoatPosition(nextProgress);
+            boat.angle = Math.atan2(nextPos.y - boat.y, nextPos.x - boat.x);
+        }
+
+        // Tekne çizme
+        function drawBoat() {
+            if (game.sceneState !== 'island') return;
+            
+            updateBoat();
+            
+            ctx.save();
+            
+            // Tekneyi pozisyona ve açıya göre çiz
+            ctx.translate(boat.x, boat.y);
+            ctx.rotate(boat.angle);
+            
+            // Tekne gövdesi (kahverengi)
+            ctx.fillStyle = '#654321';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, boat.width / 2, boat.height / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Tekne kenarlığı
+            ctx.strokeStyle = '#4A3728';
+                ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, boat.width / 2, boat.height / 2, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Tekne direği
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-2, -boat.height / 2 - 15, 4, 15);
+            
+            // Tekne bayrağı
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.moveTo(2, -boat.height / 2 - 15);
+            ctx.lineTo(2, -boat.height / 2 - 5);
+            ctx.lineTo(15, -boat.height / 2 - 10);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Tekne içi detay
+            ctx.fillStyle = '#8B4513';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, boat.width / 2 - 5, boat.height / 2 - 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
         }
 
         // Draw road (yol) - Kaldırım zemin
@@ -2065,6 +2495,33 @@
                 if (!dialog.isOpen && game.sceneState === 'gameplay') {
                     updatePlayer();
                     checkInteraction();  // Caffè Nero kontrolü (otomatik açılması için)
+                    
+                    // Rakun-İskele collision kontrolü (debug)
+                    if (dockX !== null) {
+                        // Rakun collision box
+                        const raccoonLeft = player.x;
+                        const raccoonRight = player.x + player.width;
+                        const raccoonTop = player.y;
+                        const raccoonBottom = player.y + player.height;
+                        
+                        // İskele collision box
+                        const dockLeft = dockX;
+                        const dockRight = dockX + dockWidth;
+                        const dockTop = 500; // İskele platform üstü (tahmini)
+                        const dockBottom = 575; // Ground level + 25 (iskele platform yüksekliği)
+                        
+                        // Collision kontrolü: AABB (Axis-Aligned Bounding Box)
+                        const isColliding = !(raccoonRight < dockLeft || 
+                                           raccoonLeft > dockRight || 
+                                           raccoonBottom < dockTop || 
+                                           raccoonTop > dockBottom);
+                        
+                        // İskele merkezinden mesafe kontrolü
+                        const playerCenterX = player.x + player.width / 2;
+                        const dockCenterX = dockX + dockWidth / 2;
+                        const distanceX = Math.abs(playerCenterX - dockCenterX);
+                        
+                    }
                 }
                 updateHedgehog();  // Kirpi hareketi (açılış sahnesi)
                 updateCamera();  // Kamerayı her zaman güncelle
@@ -2087,6 +2544,11 @@
                 drawPlayer();
 
                 ctx.restore();
+                } else if (game.sceneState === 'island') {
+                    // Ada sahnesi: Deniz ve ada
+                    drawIsland();
+                    // Karakterler ada sahnesinde görünmeyebilir veya tekne üzerinde olabilir
+                    // Şimdilik sadece ada çiziyoruz
                 } else {
                     // Gameplay: Normal oyun ekranı
                     // Arka plan (gökyüzü gradient - daha zengin)
@@ -2114,6 +2576,10 @@
         }
 
         // Start game
+        // TEST: Tekneyi başlat (ada sahnesinden başladığı için)
+        if (game.sceneState === 'island') {
+            initializeBoat();
+        }
         gameLoop();
     </script>
 </body>

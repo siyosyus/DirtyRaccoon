@@ -150,3 +150,63 @@
 
 ### Hız Ayarı
 - Kirpi hızı 2 piksel/frame → 3.75 piksel/frame olarak güncellendi
+
+### 10. İskele Etkileşimi ve 3. Sahne
+
+#### İskele Diyalog Sistemi
+- İskele pozisyonu otomatik hesaplanıyor (Caffè Nero'dan sonraki 2. büyük binadan sonra)
+- Rakun iskeleye yaklaştığında "E" sembolü görünüyor
+- İskele diyalog penceresi otomatik açılıyor
+- Diyalog metni: "Büyükada ilk tatilimizi yapmaya gidiyoruz. Çok ilginç değil mi? Ilk defa bugün görüşüyoruz ama sanki yıllardır birbirimizi tanıyor gibiyiz."
+- Cevap: "Evet, gerçekten! 💕"
+- Diyalog bir kez gösterildikten sonra tekrar açılmıyor (`dockDialogShown` flag'i)
+
+#### Caffè Nero Sonrası Hareket
+- Caffè Nero diyalogu kapandıktan sonra kirpi iskeleye doğru hareket ediyor
+- Kirpi diyalog baloncuğu: "Hadi koooooooş!! Vapuru kaçıracağız..Senin kadar hızlı koşamıyorum yahu beni bekle!!"
+- Baloncuk metni çok satırlı olarak wrap ediliyor
+- Kirpi ekrandan çıkmamak için durma mantığı Caffè Nero sonrası için de düzeltildi
+- `canMoveWithBubble` flag'i ile kirpi baloncuk gösterirken hareket etmeye devam ediyor
+
+### 11. Ada Sahnesi (4. Sahne)
+
+#### Ada Sahne Oluşturulması
+- Yeni sahne durumu: `game.sceneState = 'island'`
+- İskele diyalog penceresi kapatıldığında otomatik ada sahnesine geçiliyor
+- Ada sağ üst köşede konumlandırıldı
+- Deniz tüm ekranı kaplıyor (mavi, dalga efektli)
+- İskele sol alt köşede (ada sahnesinde ayrı bir iskele)
+- Ada üzerinde ağaçlar, kumsal şeridi, gölge efekti
+
+#### Ada Üzerinde Evler
+- İlk ev: Ada'nın sağ tarafında (`islandX + 150, islandY - 80`)
+- İkinci ev: Ada'nın ortasında (`islandX + 40, islandY + 50`)
+- Her ev: Kahverengi gövde, kırmızı çatı, kapı, 2 pencere
+
+#### Tekne Rota Sistemi
+- Tekne objesi oluşturuldu (`boat` object)
+- İskeleden başlayıp kıvrımlı bezier curve rotası ile adaya gidiyor
+- Rota 3 bölümden oluşuyor:
+  - Bölüm 1: İskeleden aşağı ve sağa doğru
+  - Bölüm 2: Ada'nın altından geçerek sağa ve yukarı
+  - Bölüm 3: Ada'nın sol tarafından yukarıdan, ortasına, alt kısmına (`islandY + 110`)
+- Tekne rotasında açı otomatik hesaplanıyor (hareket yönüne göre)
+- Tekne animasyonlu olarak rotada hareket ediyor
+- Ada sahnesine geçildiğinde tekne otomatik başlıyor
+
+#### Test Modu
+- Oyun direkt ada sahnesinden başlıyor (test için)
+- `game.state = 'playing'`, `game.sceneState = 'island'`
+- Tekne otomatik initialize ediliyor
+
+### 12. Kod İyileştirmeleri
+
+#### Kirpi Hareket Sistemi Düzeltmeleri
+- Caffè Nero sonrası kirpi ekrandan çıkmamak için durduğunda `waitingForPlayer` flag'i set ediliyor
+- Rakun hareket ettiğinde `targetX` null ise yeni hedef belirleniyor
+- Kirpi hareket logları temizlendi (production için)
+
+#### İskele Etkileşim İyileştirmeleri
+- İskele etkileşim mesafesi genişletildi (150px ön ve arka)
+- İskele kontrolü her frame çalışıyor
+- İskele logları temizlendi
