@@ -826,7 +826,7 @@
             // İskele diyaloğu ise sadece kapat ve tekrar açılmaması için flag'i set et
             if (!dialog.isHedgehogDialog && dialog.currentObject === 'dock') {
                 game.dockDialogShown = true; // Diyalog bir kez açıldı, tekrar açılmasın
-                closeDialog();
+            closeDialog();
                 // Yeni sahneye geç: Ada sahnesi
                 game.sceneState = 'island';
                 // Tekne animasyonunu başlat
@@ -2046,7 +2046,7 @@
 
             // Show "E" prompt for dock if player is near
             if (game.sceneState === 'gameplay' && !dialog.isOpen && !game.dockDialogShown && dockX !== null) {
-                const playerCenterX = player.x + player.width / 2;
+            const playerCenterX = player.x + player.width / 2;
                 const dockStartX = dockX;
                 const dockEndX = dockX + dockWidth;
                 const dockY = GROUND_LEVEL;
@@ -2061,11 +2061,11 @@
 
                     // Sadece ekranda görünürse çiz
                     if (dockScreenX >= 0 && dockScreenX <= canvas.width && dockScreenY >= 0 && dockScreenY <= canvas.height) {
-                        ctx.fillStyle = 'white';
-                        ctx.strokeStyle = 'black';
-                        ctx.lineWidth = 3;
-                        ctx.font = 'bold 20px Arial';
-                        ctx.textAlign = 'center';
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.strokeText('E', dockScreenX, dockScreenY);
                         ctx.fillText('E', dockScreenX, dockScreenY);
@@ -2409,42 +2409,23 @@
                 ctx.stroke();
             }
             
-            // Zemin tile'larını çiz (ground_pref.png kullanarak) - Karakterlerin yürüdüğü yollar
-            if (sprites.island.groundPref && sprites.island.groundPref.complete) {
-                const groundPrefImage = sprites.island.groundPref;
-                const originalTileWidth = groundPrefImage.width;
-                const originalTileHeight = groundPrefImage.height;
-                
-                // Tile'ı büyütmek için scale faktörü (2x, 3x vb. olabilir)
-                const tileScale = 1.25; // 2x büyüklükte çiz (istediğiniz boyuta göre 3, 4 vb. yapabilirsiniz)
-                const tileWidth = originalTileWidth * tileScale;
-                const tileHeight = originalTileHeight * tileScale + 20; // Yüksekliği 10 piksel artır
-                
-                // Zemin tile'larını tekrar ederek çiz (tiled pattern)
-                // Evlerin solundan sağına kadar + ekstra boşluk
-                const tileStartX = Math.floor((groundStartX - camera.x) / tileWidth) * tileWidth;
-                const tileEndX = Math.ceil((groundEndX - camera.x) / tileWidth) * tileWidth;
-                
-                for (let x = tileStartX; x <= tileEndX; x += tileWidth) {
-                    const screenX = x;
-                    const screenY = islandY;
-                    
-                    // Tile çiz (eğer ekranda görünüyorsa) - büyütülmüş boyutta
-                    if (screenX + tileWidth > 0 && screenX < canvas.width) {
-                        ctx.drawImage(
-                            sprites.island.groundPref,
-                            0, 0, originalTileWidth, originalTileHeight, // Kaynak (orijinal sprite)
-                            screenX, screenY, tileWidth, tileHeight // Hedef (büyütülmüş boyut)
-                        );
-                    }
-                }
-            } else {
-                // Fallback: Eğer tile set yüklenmediyse basit yeşil zemin
-                ctx.fillStyle = '#90EE90';
-                const groundScreenStartX = groundStartX - camera.x;
-                const groundScreenEndX = groundEndX - camera.x;
-                ctx.fillRect(groundScreenStartX, islandY, groundScreenEndX - groundScreenStartX, 100);
-            }
+            // Zemin çiz (ilk sahnedeki gibi kaldırım - pavement stili)
+            const roadHeight = 70;
+            const screenY = groundLevel - camera.y;
+            const groundScreenStartX = groundStartX - camera.x;
+            const groundScreenEndX = groundEndX - camera.x;
+            
+            // Basit düz gri kaldırım çiz (ilk sahnedeki gibi - aşağıya doğru)
+            ctx.fillStyle = '#C0C0C0'; // Açık gri kaldırım
+            ctx.fillRect(groundScreenStartX, screenY, groundScreenEndX - groundScreenStartX, roadHeight);
+            
+            // Üst kısmına hafif bir gölge/kenarlık ekle (derinlik için)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(groundScreenStartX, screenY, groundScreenEndX - groundScreenStartX, 2);
+            
+            // Alt kısmına da hafif bir gölge ekle
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(groundScreenStartX, screenY + roadHeight - 2, groundScreenEndX - groundScreenStartX, 2);
             
             // Dekorasyonları hesapla (eğer henüz hesaplanmadıysa ve sprite'lar yüklendiyse)
             // Her frame kontrol et (sprite'lar asenkron yükleniyor olabilir)
@@ -2979,6 +2960,22 @@
             // Ada pozisyonu (sağ üst köşe - drawIsland ile aynı)
             const islandX = canvas.width - 210; // drawIsland ile eşleştir
             const islandY = 150; // drawIsland ile eşleştir
+            const islandRadius = 200; // Ada yarıçapı (drawIsland ile aynı)
+            const islandRadiusY = islandRadius * 0.6; // Dikey yarıçap (120)
+            
+            // Ada sınırları (adanın üzerine çıkmamak için)
+            const islandMinX = islandX - islandRadius; // Ada sol kenarı
+            const islandMaxX = islandX + islandRadius; // Ada sağ kenarı
+            const islandMinY = islandY - islandRadiusY; // Ada üst kenarı
+            const islandMaxY = islandY + islandRadiusY; // Ada alt kenarı
+            
+            // Ada kontrolü: Bir nokta adanın üzerinde mi?
+            function isPointOnIsland(px, py) {
+                // Ada elips şeklinde, elips içinde mi kontrol et
+                const dx = (px - islandX) / islandRadius;
+                const dy = (py - islandY) / islandRadiusY;
+                return (dx * dx + dy * dy) <= 1;
+            }
             
             // İskele başlangıç pozisyonu (sol alt - iskelenin sonu)
             const dockX = 2;
@@ -2987,11 +2984,12 @@
             const startX = dockX + dockWidth + 3; // İskele sonundan biraz önce
             const startY = dockY - 30; // İskele seviyesinin biraz üstü
             
-            // Ada hedef pozisyonu (adanin ortasubda, en alt kisim)
-            const endX = islandX;
-            const endY = islandY + 110;
+            // Ada hedef pozisyonu (adanın alt kenarı, sol tarafından yaklaş - ADA KENARINDA AMA DIŞINDA)
+            // Ada sol kenarının hemen dışından, alt kenarına yakın
+            const endX = islandMinX - 8; // Ada sol kenarından sadece 8px sola (kenara çok yakın)
+            const endY = islandMaxY + 5; // Ada alt kenarından sadece 5px aşağı (kenara çok yakın)
             
-            // Kontrol noktaları (kıvrımlı rota için - daha uzun ve kıvrımlı)
+            // Kontrol noktaları (kıvrımlı rota için - ada kenarına yakın ama üzerine çıkmadan)
             // İlk bölüm: İskeleden aşağı ve sağa
             const cp1X = 150;
             const cp1Y = canvas.height - 40; // Aşağı doğru
@@ -2999,22 +2997,24 @@
             const cp2X = 250;
             const cp2Y = canvas.height - 30; // Sağa doğru
             
-            const cp3X = 400;
-            const cp3Y = canvas.height - 25; // Daha sağa, ada'nın altına doğru
+            // Ada'nın sol tarafına yaklaş
+            const cp3X = islandMinX - 80; // Ada sol kenarından 80px sola
+            const cp3Y = canvas.height - 50; // Deniz seviyesinde
             
-            // İkinci bölüm: Ada'nın altından geçerek
-            const cp4X = 550;
-            const cp4Y = canvas.height - 30; // Ada'nın altına, ortaya doğru
+            // İkinci bölüm: Ada'nın sol tarafından geçerek altına doğru
+            const cp4X = islandMinX - 60; // Ada'nın soluna yaklaş
+            const cp4Y = islandMaxY + 30; // Ada'nın alt seviyesine yaklaş
             
-            const cp5X = 650;
-            const cp5Y = canvas.height - 50; // Daha sağa, yukarı kıvrılma başlangıcı
+            const cp5X = islandMinX - 40; // Ada'nın sol tarafına daha yakın
+            const cp5Y = islandMaxY + 20; // Ada'nın alt seviyesine yaklaş
             
-            const cp6X = islandX - 80;
-            const cp6Y = canvas.height - 100; // Ada'nın sol tarafına, yukarı
+            // Ada'nın sol alt köşesine yaklaş (kenara çok yakın ama üzerine çıkma)
+            const cp6X = islandMinX - 15; // Ada sol kenarına çok yakın ama dışında
+            const cp6Y = islandMaxY + 15; // Ada'nın alt kenarına yakın
             
-            // Üçüncü bölüm: Ada'ya yukarıdan yaklaşma
-            const cp7X = islandX - 40;
-            const cp7Y = islandY + 150; // Ada'nın ortasına, alt kısmına doğru
+            // Üçüncü bölüm: Ada'nın altından hedefe (kenara yakın)
+            const cp7X = islandMinX - 12; // Ada'nın sol tarafından, kenara çok yakın
+            const cp7Y = islandMaxY + 10; // Ada'nın alt kenarına çok yakın
             
             // Bezier curve ile kıvrımlı rota (3 bezier curve birleştiriyoruz)
             let t = progress;
@@ -3045,21 +3045,41 @@
                     cp5Y * 3 * t1 * t * t + 
                     cp6Y * t * t * t;
             } else {
-                // Üçüncü bölüm: Ada'ya yukarıdan yaklaşma, ortasına alt kısım
+                // Üçüncü bölüm: Ada'nın altından hedefe (adanın dışından)
                 t = (t - 0.66) / 0.34;
                 const t1 = 1 - t;
-                // Ara kontrol noktası (ada'nın sol tarafından ortasına geçiş)
-                const cp8X = islandX - 20;
-                const cp8Y = islandY + 80;
                 
                 x = cp6X * t1 * t1 * t1 + 
                     cp7X * 3 * t1 * t1 * t + 
-                    cp8X * 3 * t1 * t * t + 
+                    endX * 3 * t1 * t * t + 
                     endX * t * t * t;
                 y = cp6Y * t1 * t1 * t1 + 
                     cp7Y * 3 * t1 * t1 * t + 
-                    cp8Y * 3 * t1 * t * t + 
+                    endY * 3 * t1 * t * t + 
                     endY * t * t * t;
+            }
+            
+            // Son kontrol: Eğer hesaplanan pozisyon ada'nın üzerindeyse, ada kenarının hemen dışına çıkar
+            if (isPointOnIsland(x, y)) {
+                // Ada'nın üzerindeyse, kenarın hemen dışına taşı (5-10px kadar dışında)
+                // Y pozisyonu: Eğer ada'nın üstündeyse alt kenarına, altındaysa alt kenarının biraz aşağısına
+                if (y < islandMaxY) {
+                    // Ada'nın üstünde veya içindeyse, alt kenarının 5px aşağısına
+                    y = islandMaxY + 5;
+                } else {
+                    // Zaten altında ama kontrol gerekli
+                    y = islandMaxY + 5;
+                }
+                // X pozisyonunu ada'nın dışında tut (sol kenara yakın)
+                if (x >= islandMinX && x <= islandMaxX) {
+                    // Ada'nın içindeyse, sol kenarın 8px dışına çıkar
+                    x = islandMinX - 8;
+                } else if (x < islandMinX) {
+                    // Zaten solunda, ama çok uzaksa yaklaştır
+                    if (x < islandMinX - 20) {
+                        x = islandMinX - 8;
+                    }
+                }
             }
             
             return { x, y };
@@ -3360,14 +3380,24 @@
             });
 
             // Show "E" prompt for Caffè Nero building if player is near
-            if (caffeNeroX !== null && caffeNeroWidth !== null && game.sceneState === 'gameplay' && !dialog.isOpen) {
+            if (caffeNeroX !== null && caffeNeroWidth !== null && game.sceneState === 'gameplay' && !dialog.isOpen && !game.caffeNeroDialogShown) {
                 const playerCenterX = player.x + player.width / 2;
-                const buildingCenterX = caffeNeroX + caffeNeroWidth / 2;
-                const distanceX = Math.abs(playerCenterX - buildingCenterX);
+                const buildingY = GROUND_LEVEL; // Ground level
+                const buildingStartX = caffeNeroX;
+                const buildingEndX = caffeNeroX + caffeNeroWidth;
                 
-                if (distanceX < 100 && player.y + player.height >= groundLevel - 10) {
+                // checkInteraction() ile aynı geniş kontrol alanı kullan
+                const isNearBuilding = (playerCenterX >= buildingStartX - 100 && playerCenterX <= buildingEndX + 100);
+                const playerOnGround = player.y + player.height >= buildingY - 10;
+                
+                if (isNearBuilding && playerOnGround) {
+                    // Caffè Nero binasının sprite'ını al ve yüksekliğini hesapla
+                    const caffeNeroSprite = sprites.buildings.largeBar;
+                    const buildingHeight = (caffeNeroSprite && caffeNeroSprite.complete) ? caffeNeroSprite.height : 120;
+                    
                     const buildingScreenX = caffeNeroX + caffeNeroWidth / 2 - camera.x;
-                    const buildingScreenY = groundLevel - camera.y - 120; // Binanın üstünde, görünür pozisyon
+                    // Binanın üst kenarından 10 pixel yukarıda: groundLevel - buildingHeight - 10
+                    const buildingScreenY = groundLevel - buildingHeight - 10 - camera.y;
 
                     ctx.fillStyle = 'white';
                     ctx.strokeStyle = 'black';
