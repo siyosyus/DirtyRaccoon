@@ -345,7 +345,8 @@
             carMoving: false,  // Araba hareket ediyor mu? (arabaya binme sonrası)
             gameOver: false,  // Game Over ekranı gösterilsin mi?
             playerTargetX: null,  // Rakun'un hedef pozisyonu (arabaya yürüme için)
-            datcaCharactersMovingToCar: false  // Karakterler arabaya doğru yürüyor mu?
+            datcaCharactersMovingToCar: false,  // Karakterler arabaya doğru yürüyor mu?
+            datcaCarDrivingAway: false  // Araba ekrandan çıkıyor mu? (karakterler bindikten sonra)
         };
 
         // Tekne objesi (ada sahnesi için)
@@ -1156,7 +1157,6 @@
                 game.datcaHedgehogMovingToLastHouse = true;
                 game.datcaHedgehogReachedLastHouse = false;
 
-                console.log('[Datca] Hotel check-in tamamlandı, kirpi son eve gidiyor:', hedgehog.targetX);
                 return;
             }
 
@@ -1164,66 +1164,29 @@
             if (!dialog.isHedgehogDialog && dialog.currentObject === 'datcaLastHouse') {
                 // Hangi cevap seçildi? (closeDialog'dan ÖNCE al!)
                 const selectedAnswer = dialog.answers[answerIndex];
-                console.log('[handleAnswer] Son ev diyaloğu - answerIndex:', answerIndex, 'seçilen:', selectedAnswer);
 
                 // "Eveeeeeeeet!!!" seçildiyse (index 0)
                 if (answerIndex === 0 && selectedAnswer === 'Eveeeeeeeet!!!') {
-                    console.log('[handleAnswer] Evet seçildi, karakterler arabaya gidiyor');
                     closeDialog();
-                    // Karakterler arabaya doğru yürüsün
-                    // Araba pozisyonunu game.datcaCarX'ten al (eğer araba geldiyse)
-                    let carX = null;
-                    
-                    if (game.datcaCarX !== undefined && game.datcaCarX !== null && game.datcaCarArrived) {
-                        // Araba geldiyse, gerçek pozisyonunu kullan
-                        carX = game.datcaCarX;
-                    } else {
-                        // Araba henüz gelmediyse, hedef pozisyonunu hesapla
-                        const datcaXWorld = canvas.width / 2;
-                        const houseStartX = datcaXWorld - 400;
-                        const houseSpacing = 40;
-                        const houseScale = 1.35;
-                        
-                        // Hotel pozisyonunu hesapla (araba hotel önünde duruyor)
-                        let hotelX = houseStartX;
-                        hotelX += 150 * houseScale + houseSpacing; // home1
-                        hotelX += 196 * houseScale + houseSpacing; // home2
-                        hotelX += 150 * houseScale + houseSpacing; // home1
-                        hotelX += 196 * houseScale + houseSpacing; // home2
-                        
-                        // Araba pozisyonu (hotel'in sol çitinin 200 piksel önünde)
-                        const wallPadding = 10;
-                        const wallVWidth = sprites.island.decoration.wallVertical && sprites.island.decoration.wallVertical.complete
-                            ? sprites.island.decoration.wallVertical.width
-                            : 8;
-                        const hotelFenceLeft = hotelX - wallPadding - wallVWidth;
-                        carX = hotelFenceLeft - 200;
-                    }
-                    
-                    if (carX !== null) {
-                        // Rakun arabaya doğru yürüsün
-                        player.velocityX = 0; // Sıfırla
-                        game.playerTargetX = carX + 80; // Arabanın sağına
-                        
-                        // Kirpi arabaya doğru yürüsün
-                        hedgehog.targetX = carX + 30; // Arabanın soluna
-                        hedgehog.isMoving = true;
-                        hedgehog.waitingForPlayer = false;
-                        hedgehog.canMoveWithBubble = false;
-                        hedgehog.showSpeechBubble = false;
-                        
-                        game.datcaCharactersMovingToCar = true;
-                        
-                        // Debug log
-                        console.log('[handleAnswer] Karakterler arabaya yürüyor:', {
-                            carX: carX,
-                            playerTargetX: game.playerTargetX,
-                            hedgehogTargetX: hedgehog.targetX,
-                            currentPlayerX: player.x,
-                            currentHedgehogX: hedgehog.x,
-                            flagSet: game.datcaCharactersMovingToCar
-                        });
-                    }
+
+                    // Arabayı karakterlerin yanına getir (son evin önüne park et)
+                    const avgX = (player.x + hedgehog.x) / 2;
+                    const carX = avgX - 300;
+                    game.datcaCarX = carX;
+
+                    // Rakun arabaya doğru yürüsün
+                    player.velocityX = 0;
+                    game.playerTargetX = carX + 80;
+
+                    // Kirpi arabaya doğru yürüsün
+                    hedgehog.targetX = carX + 30;
+                    hedgehog.isMoving = true;
+                    hedgehog.waitingForPlayer = false;
+                    hedgehog.canMoveWithBubble = false;
+                    hedgehog.showSpeechBubble = false;
+
+                    game.datcaCharactersMovingToCar = true;
+
                     return;
                 }
                 
@@ -1364,7 +1327,7 @@
         // Update player
         function updatePlayer() {
             // Datça sahnesinde arabaya doğru yürüme kontrolü
-            if (game.sceneState === 'datca' && game.datcaCharactersMovingToCar && game.playerTargetX !== null) {
+            if (game.sceneState === 'datca' && game.datcaCharactersMovingToCar && game.playerTargetX !== null && !game.datcaCharactersInCar) {
                 const distanceToTarget = Math.abs(player.x - game.playerTargetX);
 
                 if (distanceToTarget > 5) {
@@ -1376,25 +1339,26 @@
                         player.velocityX = -player.speed;
                         player.facingDirection = -1; // Sola bakıyor
                     }
+                    // Arabaya varma kontrolü game loop'ta yapılıyor
                 } else {
                     // Hedefe ulaşıldı, dur
                     player.x = game.playerTargetX;
                     player.velocityX = 0;
-                    game.datcaCharactersMovingToCar = false; // Hareket bitti
+                    // Arabaya varma kontrolü game loop'ta yapılıyor
                 }
-
+                
                 // Jumping ve gravity kontrolleri devam edecek ama normal hareket kontrolü atlanacak
                 // (Aşağıdaki else bloğu atlanır, ama jumping/gravity devam eder)
             } else {
                 // Normal hareket kontrolü
-                if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
                     player.facingDirection = -1; // Sola bakıyor
-                    player.velocityX = -player.speed;
-                } else if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                player.velocityX = -player.speed;
+            } else if (keys['ArrowRight'] || keys['d'] || keys['D']) {
                     player.facingDirection = 1; // Sağa bakıyor
-                    player.velocityX = player.speed;
-                } else {
-                    player.velocityX *= game.friction;
+                player.velocityX = player.speed;
+            } else {
+                player.velocityX *= game.friction;
                 }
             }
 
@@ -1758,7 +1722,7 @@
         // Update hedgehog (kirpi hareketi ve açılış sahnesi)
         function updateHedgehog() {
             // Datça sahnesinde arabaya doğru yürüme kontrolü
-            if (game.sceneState === 'datca' && game.datcaCharactersMovingToCar && hedgehog.targetX !== null) {
+            if (game.sceneState === 'datca' && game.datcaCharactersMovingToCar && hedgehog.targetX !== null && !game.datcaCharactersInCar) {
                 const distanceToTarget = Math.abs(hedgehog.x - hedgehog.targetX);
 
                 if (distanceToTarget > 5) {
@@ -1771,6 +1735,9 @@
                         hedgehog.facingDirection = -1; // Sola bakıyor
                     }
                     hedgehog.isMoving = true;
+                    
+                    // Araba yakınlık kontrolü (updatePlayer'da yapılıyor ama burada da kontrol edelim)
+                    // Aslında updatePlayer'da zaten kontrol ediliyor, burada sadece hareket etmeye devam et
                 } else {
                     // Hedefe ulaşıldı, dur
                     hedgehog.x = hedgehog.targetX;
@@ -2621,13 +2588,13 @@
                     );
                 } else {
                     // Normal (sağa bakıyor)
-                    ctx.drawImage(
-                        frame,
-                        screenX,
-                        screenY + spriteYOffset,
-                        player.width,
-                        player.height + spriteHeightExtension
-                    );
+                ctx.drawImage(
+                    frame,
+                    screenX,
+                    screenY + spriteYOffset,
+                    player.width,
+                    player.height + spriteHeightExtension
+                );
                 }
 
                 ctx.restore();
@@ -2691,15 +2658,15 @@
                     );
                 } else {
                     // Sağa bakıyorsa normal çiz
-                    ctx.drawImage(
-                        spriteSheet,
-                        currentFrame * frameWidth, 0,  // Source x, y
-                        frameWidth, frameHeight,        // Source width, height
-                        drawX,                          // Dest x (merkeze hizalı)
-                        drawY,                          // Dest y (merkeze hizalı)
-                        drawWidth,                      // Dest width (collision box içinde)
-                        drawHeight                      // Dest height (collision box içinde)
-                    );
+                ctx.drawImage(
+                    spriteSheet,
+                    currentFrame * frameWidth, 0,  // Source x, y
+                    frameWidth, frameHeight,        // Source width, height
+                    drawX,                          // Dest x (merkeze hizalı)
+                    drawY,                          // Dest y (merkeze hizalı)
+                    drawWidth,                      // Dest width (collision box içinde)
+                    drawHeight                      // Dest height (collision box içinde)
+                );
                 }
                 ctx.restore();
             } else {
@@ -3914,27 +3881,42 @@
         // Datça sahnesi arabası güncelleme
         function updateDatcaCar() {
             if (game.sceneState !== 'datca') return;
+
+            const carSpeed = 5; // Arabanın hızı (pixel/frame)
+
+            // Araba ekrandan çıkıyor mu? (karakterler bindikten sonra)
+            if (game.datcaCarDrivingAway) {
+                game.datcaCarX += carSpeed;
+
+                // Karakterleri arabayla birlikte hareket ettir (ama görünmezler)
+                if (game.datcaCharactersInCar) {
+                    player.x = game.datcaCarX;
+                    hedgehog.x = game.datcaCarX - 50;
+                }
+
+                return;
+            }
+
+            // Normal araba hareketi (sahne başlangıcında)
             if (!game.datcaCarMoving) return;
             if (game.datcaCarX === undefined || game.datcaCarTargetX === undefined) return;
-            
-            const carSpeed = 5; // Arabanın hızı (pixel/frame)
-            
+
             // Araba hedefe ulaşmadıysa hareket et
             if (game.datcaCarX < game.datcaCarTargetX) {
                 game.datcaCarX += carSpeed;
-                
+
                 // Karakterleri arabayla birlikte hareket ettir
                 if (game.datcaCharactersInCar) {
                     player.x = game.datcaCarX;
                     hedgehog.x = game.datcaCarX - 50;
                 }
-                
+
                 // Araba hedefe ulaştı mı?
                 if (game.datcaCarX >= game.datcaCarTargetX) {
                     game.datcaCarX = game.datcaCarTargetX;
                     game.datcaCarMoving = false;
                     game.datcaCarArrived = true;
-                    
+
                     // Karakterler arabadan in
                     game.datcaCharactersInCar = false;
                     const datcaGroundOffset = 250;
@@ -3968,11 +3950,9 @@
                     hedgehog.waitingForPlayer = false;
                     game.datcaHedgehogMovingToHotel = true;
                     game.datcaHedgehogReachedHotel = false;
-
-                    console.log('[updateDatcaCar] Kirpi otele yürüyor, hedef:', hedgehog.targetX);
                 }
             }
-            
+
             // Kamera arabayı takip et
             camera.x = Math.max(0, game.datcaCarX - canvas.width / 2);
         }
@@ -7353,8 +7333,6 @@
                         hedgehog.showSpeechBubble = true;
                         hedgehog.speechText = 'Check-in yapalım da yemeğe gidelim yahu. Kurt gibi açım!!';
                         hedgehog.speechBubbleTimer = 300; // 5 saniye (60 fps * 5)
-
-                        console.log('[Datca] Kirpi otele ulaştı, diyalog gösteriliyor');
                     }
                 }
 
@@ -7366,15 +7344,13 @@
                         hedgehog.targetX = null;
                         game.datcaHedgehogMovingToLastHouse = false;
                         game.datcaHedgehogReachedLastHouse = true;
-
-                        console.log('[Datca] Kirpi son eve ulaştı');
                     }
                 }
 
                 // Datça sahnesinde karakterlerin arabaya ulaşmasını kontrol et
                 if (game.sceneState === 'datca' && game.datcaCharactersMovingToCar) {
-                    const playerReached = game.playerTargetX !== null && Math.abs(player.x - game.playerTargetX) < 10;
-                    const hedgehogReached = hedgehog.targetX !== null && Math.abs(hedgehog.x - hedgehog.targetX) < 10;
+                    const playerReached = game.playerTargetX !== null && Math.abs(player.x - game.playerTargetX) < 50;
+                    const hedgehogReached = hedgehog.targetX !== null && Math.abs(hedgehog.x - hedgehog.targetX) < 50;
 
                     if (playerReached && hedgehogReached) {
                         // Her iki karakter de arabaya ulaştı
@@ -7384,8 +7360,11 @@
                         game.playerTargetX = null;
                         hedgehog.targetX = null;
 
-                        console.log('[Datca] Karakterler arabaya ulaştı!');
-                        // İleride: sahne geçişi veya araba hareket etmeye başlasın
+                        // Karakterler arabaya bin (görünmez ol)
+                        game.datcaCharactersInCar = true;
+
+                        // Araba ekrandan çıkmaya başlasın
+                        game.datcaCarDrivingAway = true;
                     }
                 }
 
