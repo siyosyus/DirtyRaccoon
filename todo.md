@@ -334,3 +334,48 @@
 - `updateCar()` fonksiyonu eklendi (araba hareket güncellemesi)
 - `carX` pozisyonu arabaya binildikten sonra yeniden hesaplanmıyor (hareket için)
 - Kamera sistemi arabaya binme durumunu destekliyor
+
+### 20. Istanbul-Datça Yolculuk Sahnesi
+
+#### Yeni Sahne Oluşturuldu
+- Yeni sahne durumu: `istanbulDatca` (araba ile yolculuk sahnesi)
+- Araba `returningHome` sahnesinde ekrandan çıktığında otomatik geçiş
+- Gökyüzü gradient arka plan (açık mavi tonları)
+- Araba rotası sistemi: `roadTripCar` objesi ile rota takibi
+
+#### 3 Satırlı Zigzag Rota Sistemi
+- **Satır 1**: Sol → Sağ (tamamen)
+- **Geçiş 1**: Sağ üst → Sağ orta (smooth bezier curve, X+ ekseninde uzatılmış)
+- **Satır 2**: Sağ → Sol (tamamen)
+- **Geçiş 2**: Sol orta → Sol alt (smooth bezier curve)
+- **Satır 3**: Sol → Sağ (tamamen, Datça'ya)
+- Bezier curve ile smooth geçişler
+- Progress tabanlı rota hesaplama (`getRoadTripPosition`)
+
+#### Yol Çizim Sistemi
+- **Snake Game Mantığı**: Tüm yol baştan çiziliyor (araba geçtikçe değil)
+- Yol sprite kullanımı: `ground_pref.png` ile pattern fill
+- Fallback: Sprite yoksa asfalt görünümlü yol (gri, beyaz kenarlar, sarı orta çizgi)
+- Segment interpolasyonu: Geçiş bölümlerinde daha fazla nokta
+- Polygon tabanlı yol çizimi (kenarlar dinamik hesaplanıyor)
+- Yol genişliği: 60px
+
+#### Tabela Sistemi
+- **Istanbul Tabelası**: Sol üst köşe (x=20, y=20)
+- **Datça Tabelası**: Sağ alt köşe (canvas.width - 160, canvas.height - 120)
+- Beyaz dikdörtgen arka plan, siyah kenarlık
+- Kahverengi direk (her tabelanın altında)
+- Tabelalar yolun ve arabanın üstünde çiziliyor (z-order)
+- Canvas transform sıfırlama ile arabanın transform'larından etkilenmiyor
+
+#### Yol Pozisyon Ayarları
+- **Yol başlangıcı**: Istanbul tabelasının bittiği pixel'den +5 pixel sonra
+- **Yol bitişi**: Datça tabelasının başladığı yerden 10px önce
+- **Araba pozisyon düzeltmesi**: Araba merkezi yol sonuna geldiğinde yarısı dışarı taşmamalı
+- Araba genişliği hesabı ile yol bitiş noktası ayarlandı
+
+#### Pathing İyileştirmeleri
+- Geçiş bölümlerinde 5 kat daha fazla segment (smooth görünüm)
+- Segment interpolasyonu: Büyük boşluklar için ara noktalar
+- Toplam 300+ segment ile yüksek çözünürlüklü rota
+- Araba rotası ile yol segmentleri birebir eşleşiyor
