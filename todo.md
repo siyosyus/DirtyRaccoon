@@ -210,3 +210,29 @@
 - İskele etkileşim mesafesi genişletildi (150px ön ve arka)
 - İskele kontrolü her frame çalışıyor
 - İskele logları temizlendi
+
+### 13. onIsland Sahnesi İyileştirmeleri
+
+#### İskele, Deniz ve Tekne Ekleme
+- onIsland sahnesine son evden sonra iskele, deniz ve tekne eklendi
+- İskele pozisyonu: Son evden 100 piksel sonra (son evin sağından başlıyor)
+- Deniz: İskele başlangıcından itibaren tüm sağ taraf deniz olarak çiziliyor
+- Tekne: İskelenin sonuna halatla bağlı, denize paralel duruyor
+- Tekne bayrağı: Tekneye bitişik kırmızı bayrak
+- Halat bağlantı noktaları: Hem iskele üzerinde hem tekne üzerinde görünüyor
+- Deniz dalga efektleri eklendi
+
+#### İskele Görsel Detayları
+- İskele kazıkları (bacaklar): İlk 3 bacak çizilmiyor (sadece son 3 bacak görünüyor)
+- İskele platformu: Ahşap görünümlü kahverengi platform
+- İskele kazıkları: Suya doğru uzanan kahverengi dikey çubuklar
+
+#### Karakter Sınırları Güncellemesi
+- **Gameplay sahnesi**: Rakun ve kirpi iskele başlangıcına (`dockX`) kadar gidebilir, daha ileriye gidemez
+- **onIsland sahnesi**: Rakun ve kirpi iskele başlangıcına (`islandDockX`) kadar gidebilir, daha ileriye gidemez
+- Her iki sahnede de karakterler iskele üzerine çıkamıyor
+
+#### Kamera Sınırları Genişletme
+- onIsland sahnesinde kamera sınırları iskele sonundan 800 piksel daha sağa genişletildi
+- Böylece deniz, iskele ve tekne tamamen görünür oluyor
+- Karakter sınırları iskele başlangıcında, kamera iskele sonundan 800 piksel sonrasına kadar takip edebiliyor

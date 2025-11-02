@@ -217,10 +217,74 @@
         sprites.buildings.smallIceCreamShop.src = 'buildings/Themed shops/Small/Ice Cream Shop.png';
         sprites.buildings.smallJewelleryShop.src = 'buildings/Themed shops/Small/Jewellery shop.png';
         
+        // Load island tile sets
+        sprites.island = {
+            ground: new Image(),
+            groundPref: new Image(), // ground_pref.png için
+            objects: new Image(),
+            buildings: new Image(),
+            wallsRoofsDoors: new Image(),
+            home1: new Image(), // home1.png
+            home2: new Image(), // home2.png
+            hotel: new Image(),  // hotel.png
+            // Dekorasyon malzemeleri (susleme klasöründen)
+            decoration: {
+                lamp: new Image(),
+                sit: new Image(),
+                tree: new Image(),
+                wallHorizontal: new Image(),
+                wallVertical: new Image(),
+                cicek: new Image()  // Çiçek dekorasyonu
+            }
+        };
+        
+        sprites.island.ground.src = 'island/ground_demo.png';
+        sprites.island.groundPref.src = 'island/ground_pref.png';
+        sprites.island.objects.src = 'island/objects_demo.png';
+        sprites.island.buildings.src = 'island/premade_buildings_demo.png';
+        sprites.island.wallsRoofsDoors.src = 'island/walls_roofs_doors_demo.png';
+        sprites.island.home1.src = 'island/home1.png';
+        sprites.island.home2.src = 'island/home2.png';
+        sprites.island.hotel.src = 'island/hotel.png';
+        // Dekorasyon sprite'larını yükle
+        sprites.island.decoration.lamp.src = 'island/susleme/lamp.png';
+        sprites.island.decoration.sit.src = 'island/susleme/sit.png';
+        sprites.island.decoration.tree.src = 'island/susleme/tree.png';
+        sprites.island.decoration.wallHorizontal.src = 'island/susleme/wall_horizontal.png';
+        sprites.island.decoration.wallVertical.src = 'island/susleme/wall_vertical.png';
+        sprites.island.decoration.cicek.src = 'island/cicek.png';
+        
+        // Island sprite yükleme hatalarını yakala
+        Object.keys(sprites.island).forEach(key => {
+            const img = sprites.island[key];
+            // decoration bir obje olduğu için kontrol et
+            if (img instanceof Image) {
+                img.onerror = function() {
+                    // Hata sessizce göz ardı edilir
+                };
+                img.onload = function() {
+                    // Sprite yüklendi
+                };
+            } else if (key === 'decoration' && typeof img === 'object') {
+                // decoration objesindeki sprite'ları da işle
+                Object.keys(img).forEach(decKey => {
+                    const decImg = img[decKey];
+                    if (decImg instanceof Image) {
+                        decImg.onerror = function() {
+                            // Hata sessizce göz ardı edilir
+                        };
+                        decImg.onload = function() {
+                            // Sprite yüklendi
+                        };
+                    }
+                });
+            }
+        });
+        
         // Sprite yükleme hatalarını yakala
         Object.keys(sprites.buildings).forEach(key => {
             sprites.buildings[key].onerror = function() {
-                console.error(`Bina sprite yüklenemedi: ${key}`);
+                // Hata sessizce göz ardı edilir
             };
         });
 
@@ -258,6 +322,9 @@
         });
         window.addEventListener('keyup', (e) => keys[e.key] = false);
 
+        // TÜM SAHNELERDE KULLANILACAK ZEMİN SEVİYESİ (tek bir yerden yönetiliyor)
+        const GROUND_LEVEL = 530; // Tüm sahnelerde aynı zemin seviyesi
+
         // Game state
         const game = {
             gravity: 0.6,
@@ -266,10 +333,13 @@
             state: 'playing',  // 'intro', 'verification', 'playing', 'finished' - TEST: direkt 'playing'
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
-            sceneState: 'island',  // 'opening', 'gameplay', 'island' - TEST: direkt 'island'
+            sceneState: 'onIsland',  // 'opening', 'gameplay', 'island', 'onIsland' - TEST: direkt 'onIsland'
             openingDialogShown: false,  // Açılış dialogu gösterildi mi?
             caffeNeroDialogShown: false,  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
-            dockDialogShown: false  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
+            dockDialogShown: false,  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
+            innEntered: false,  // Otel'e girildi mi? (sahne bitişi için)
+            islandDecorations: [],  // Ada sahnesindeki dekorasyonlar (bir kez hesaplanıp saklanır)
+            islandDecorationsInitialized: false  // Dekorasyonlar hesaplandı mı?
         };
 
         // Tekne objesi (ada sahnesi için)
@@ -453,7 +523,8 @@
             text: '',
             answers: [],
             currentObject: null,
-            isHedgehogDialog: false // Kirpi konuşması mı?
+            isHedgehogDialog: false, // Kirpi konuşması mı?
+            step: 0 // Otel diyalogu için adım sayacı
         };
 
 
@@ -523,6 +594,46 @@
                 }
             }
 
+            // Otel etkileşimi (onIsland sahnesi)
+            if (game.sceneState === 'onIsland' && !game.innEntered) {
+                const islandXWorld = canvas.width / 2;
+                
+                // Evlerin sırası: home1, home2, home1, home2, hotel, home1
+                // Hotel pozisyonunu hesapla (5. sırada)
+                let hotelWorldX = islandXWorld - 400; // İlk ev pozisyonu (drawOnIsland ile aynı)
+                const houseSpacing = 40; // Evler arası boşluk (azaltıldı)
+                
+                // İlk 4 evin genişliklerini topla (home1, home2, home1, home2) - 1.35x scale ile
+                const houseScale = 1.35; // Evlerin boyut çarpanı
+                if (sprites.island.home1 && sprites.island.home1.complete && 
+                    sprites.island.home2 && sprites.island.home2.complete) {
+                    const home1Width = sprites.island.home1.width * houseScale;
+                    const home2Width = sprites.island.home2.width * houseScale;
+                    // 2 tane home1 + 2 tane home2 + 3 boşluk (evler arası)
+                    hotelWorldX += (home1Width + houseSpacing) + (home2Width + houseSpacing) + 
+                                    (home1Width + houseSpacing) + (home2Width + houseSpacing);
+                } else {
+                    // Fallback: Eğer sprite'lar yüklenmediyse tahmin et
+                    hotelWorldX += (100 * houseScale + houseSpacing) * 4; // Her ev için 100px genişlik varsay (scale ile)
+                }
+                
+                // Hotel genişliği (1.35x scale ile)
+                let hotelWidth = 96 * houseScale; // Varsayılan
+                if (sprites.island.hotel && sprites.island.hotel.complete) {
+                    hotelWidth = sprites.island.hotel.width * houseScale;
+                }
+                
+                const hotelCenterX = hotelWorldX + hotelWidth / 2;
+                const distanceToHotel = Math.abs(playerCenterX - hotelCenterX);
+                
+                // Rakun otelin önünde mi ve E tuşuna basıldı mı?
+                if (distanceToHotel < 100 && playerCenterX >= hotelWorldX - 20 && playerCenterX <= hotelWorldX + hotelWidth + 20) {
+                    // Diyalog aç
+                    openHotelDialog();
+                    return;
+                }
+            }
+
             // Kirpi etkileşimi E tuşu ile kaldırıldı - sadece opening sahnesinde otomatik açılıyor
             // (E tuşu ile kirpi'ye yaklaşınca diyalog açılmıyor)
         }
@@ -547,6 +658,47 @@
             dialog.currentObject = null;
         }
 
+        // Open Hotel dialog (Otel diyaloğu)
+        function openHotelDialog() {
+            dialog.isOpen = true;
+            dialog.isHedgehogDialog = false;
+            dialog.currentObject = 'hotel';
+            dialog.step = 1; // İlk adımı başlat
+            updateHotelDialogStep();
+        }
+
+        // Otel diyalog adımlarını güncelle
+        function updateHotelDialogStep() {
+            if (dialog.currentObject !== 'hotel') return;
+
+            switch (dialog.step) {
+                case 1: // İlk karşılama
+                    dialog.text = 'Merhaba. Size nasıl yardımcı olabiliriz?';
+                    dialog.text2 = '';
+                    dialog.answers = ['Yemek siparişi vermek istiyoruz.'];
+                    break;
+                case 2: // Oda seçimi
+                    dialog.text = 'Tabii! Siz odanıza dönün isterseniz. Ben arkadaşı odanıza yönlendirebilirim.';
+                    dialog.text2 = '';
+                    dialog.answers = ['Buraya kadar gelmişken biz direkt verelim siparişimizi.'];
+                    break;
+                case 3: // Kalış süresi
+                    dialog.text = 'O da olur. Ben sizin için söylemiştim. Ne istersiniz?';
+                    dialog.text2 = '';
+                    dialog.answers = ['2 tane karışık pizza ve 2 tane Cola rica ediyoruz.'];
+                    break;
+                case 4: // Son mesaj
+                    dialog.text = 'Tamamdır. Arkadaşım hazır olunca odanıza getirecek. Afiyet olsun.';
+                    dialog.text2 = '';
+                    dialog.answers = ['Teşekkür ederiz.'];
+                    break;
+                default:
+                    closeDialog();
+                    game.innEntered = true;
+                    break;
+            }
+        }
+
         // Open hedgehog dialog (helper messages)
         function openHedgehogDialog() {
             dialog.isOpen = true;
@@ -563,6 +715,7 @@
             dialog.text = '';
             dialog.answers = [];
             dialog.currentObject = null;
+            dialog.step = 0;
         }
 
         // Metin sarma yardımcı fonksiyonu
@@ -615,6 +768,27 @@
                     // İlk frame'de baloncuk gösterilmesini engelle (kirpi önce hedefe gitmeli)
                     // Not: updateHedgehog içinde rakun duruyorsa kontrol edilecek
                 }
+                return;
+            }
+
+            // Otel diyaloğu ise çok adımlı sistemi kullan
+            if (!dialog.isHedgehogDialog && dialog.currentObject === 'hotel') {
+                dialog.step++;
+                updateHotelDialogStep();
+                
+                // Son adımdan sonra (step 4'te "Teşekkürler!" cevabı verildiğinde)
+                if (dialog.step > 4) {
+                    game.innEntered = true;
+                    closeDialog();
+                    
+                    // Kirpinin diyalog baloncuğunu göster
+                    hedgehog.showSpeechBubble = true;
+                    hedgehog.speechText = 'Bu kadar saçma bir şey ancak bizim başımıza gelebilirdi 😂';
+                    
+                    // Burada yeni sahneye geçiş yapılabilir veya oyun bitirilebilir
+                    return;
+                }
+                // Adım güncellendi, diyalog açık kalacak ve yeni soru gösterilecek
                 return;
             }
 
@@ -735,11 +909,21 @@
             const textGap = text2Lines.length > 0 ? 15 : 0;
             const totalTextHeight = textHeight + text2Height + textGap;
             
-            const answerHeight = 40;
-            const answerSpacing = 50;
-            const answerAreaHeight = dialog.answers.length * answerSpacing;
+            // Cevaplar için alan (dinamik hesaplama - tıklama kontrolü için)
+            const clickAnswerHeight = 40;
+            const clickAnswerBoxWidth = dialogWidth - 100;
+            const clickAnswerTextWidth = clickAnswerBoxWidth - 40;
+            ctx.font = '16px Arial';
+            let clickTotalAnswerHeight = 0;
+            dialog.answers.forEach((answer, index) => {
+                const answerText = answer;
+                const answerLines = wrapText(answerText, clickAnswerTextWidth, '16px Arial');
+                const answerBoxHeight = Math.max(clickAnswerHeight, answerLines.length * 22 + 16);
+                clickTotalAnswerHeight += answerBoxHeight + 10; // 10px boşluk
+            });
+            const clickAnswerAreaHeight = clickTotalAnswerHeight;
             
-            const dialogHeight = Math.max(300, totalTextHeight + answerAreaHeight + 100);
+            const dialogHeight = Math.max(300, totalTextHeight + clickAnswerAreaHeight + 100);
             const dialogBoxY = dialogY + (300 - dialogHeight) / 2;
             
             let currentY = dialogBoxY + 50;
@@ -748,16 +932,23 @@
                 currentY += text2Height + 20;
             }
 
-            // Check if clicked on an answer
+            // Check if clicked on an answer (dinamik yükseklikler için güncellendi)
+            ctx.font = '16px Arial';
+            let clickAnswerOffsetY = 0;
             dialog.answers.forEach((answer, index) => {
-                const answerY = currentY + index * answerSpacing;
+                const answerText = answer;
+                const answerLines = wrapText(answerText, clickAnswerTextWidth, '16px Arial');
+                const answerBoxHeight = Math.max(clickAnswerHeight, answerLines.length * 22 + 16);
+                const answerY = currentY + clickAnswerOffsetY;
                 const answerX = dialogX + 50;
-                const answerWidth = dialogWidth - 100;
+                const answerWidth = clickAnswerBoxWidth;
                 
                 if (mouseX > answerX && mouseX < answerX + answerWidth && 
-                    mouseY > answerY && mouseY < answerY + answerHeight) {
+                    mouseY > answerY && mouseY < answerY + answerBoxHeight) {
                     handleAnswer(index);
                 }
+                
+                clickAnswerOffsetY += answerBoxHeight + 10; // 10px boşluk
             });
         });
 
@@ -787,19 +978,79 @@
 
             // Keep player in bounds (harita sınırları içinde)
             if (player.x < 0) player.x = 0;
-            // Binaların sonundan ileriye gitmesin
-            if (lastBuildingX !== null) {
-                const maxX = lastBuildingX;
-                if (player.x + player.width > maxX) {
-                    player.x = maxX - player.width;
-                    player.velocityX = 0; // Sınıra ulaştı, dur
+            // İskele başlangıcına kadar gidebilir (gameplay sahnesi)
+            if (game.sceneState === 'gameplay') {
+                if (dockX !== null) {
+                    // İskele başlangıcına kadar git, daha ileriye gidemesin
+                    if (player.x + player.width > dockX) {
+                        player.x = dockX - player.width;
+                        player.velocityX = 0; // Sınıra ulaştı, dur
+                    }
+                } else if (lastBuildingX !== null) {
+                    // İskele henüz hesaplanmadıysa, binaların sonuna kadar
+                    const maxX = lastBuildingX;
+                    if (player.x + player.width > maxX) {
+                        player.x = maxX - player.width;
+                        player.velocityX = 0;
+                    }
+                } else if (player.x + player.width > game.mapWidth) {
+                    player.x = game.mapWidth - player.width;
                 }
             } else if (player.x + player.width > game.mapWidth) {
                 player.x = game.mapWidth - player.width;
             }
 
-            // Ground collision (zemin seviyesi: 550)
-            const groundLevel = 550;
+            // Ground collision - TÜM SAHNELERDE AYNI ZEMİN SEVİYESİ
+            let groundLevel = GROUND_LEVEL;
+            
+            // Ada sınırları kontrolü (sadece onIsland sahnesi için)
+            if (game.sceneState === 'onIsland') {
+                const islandXWorld = canvas.width / 2; // Ada merkezi
+                
+                // Evlerin pozisyonlarını hesapla (karakter sınırları için)
+                const houseStartX = islandXWorld - 400; // İlk ev pozisyonu
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+                
+                // Tüm evlerin toplam genişliğini hesapla
+                let totalHousesWidth = 0;
+                const housesPattern = [
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.hotel, name: 'hotel' },
+                    { sprite: sprites.island.home1, name: 'home1' }
+                ];
+                
+                for (let i = 0; i < housesPattern.length; i++) {
+                    const house = housesPattern[i];
+                    if (house.sprite && house.sprite.complete) {
+                        const houseWidth = house.sprite.width * houseScale;
+                        totalHousesWidth += houseWidth;
+                        if (i < housesPattern.length - 1) {
+                            totalHousesWidth += houseSpacing;
+                        }
+                    }
+                }
+                
+                // Karakter sınırları: İlk evin solundan iskele başlangıcına kadar
+                const islandLeft = houseStartX - 50; // Biraz sol taraftan boşluk
+                const lastHouseRight = houseStartX + totalHousesWidth;
+                const islandDockX = lastHouseRight + 100; // İskele başlangıcı
+                const islandDockWidth = 180;
+                const islandRight = islandDockX; // İskele başlangıcına kadar (daha ileriye gidemez)
+                
+                if (player.x < islandLeft) {
+                    player.x = islandLeft;
+                    player.velocityX = 0;
+                }
+                if (player.x + player.width > islandRight) {
+                    player.x = islandRight - player.width;
+                    player.velocityX = 0;
+                }
+            }
+            
             if (player.y + player.height >= groundLevel) {
                 player.y = groundLevel - player.height;
                     player.velocityY = 0;
@@ -811,13 +1062,62 @@
 
         // Update camera (kamera oyuncuyu takip eder)
         function updateCamera() {
+            // Ada sahnesi için özel kamera ayarları
+            if (game.sceneState === 'onIsland') {
+                // Ada pozisyonu (dünya koordinatları - drawOnIsland ile aynı)
+                const islandXWorld = canvas.width / 2;
+                const islandY = GROUND_LEVEL; // TÜM SAHNELERDE AYNI ZEMİN SEVİYESİ
+                
+                // Evlerin pozisyonlarını hesapla (kamera sınırları için)
+                const houseStartX = islandXWorld - 400; // İlk ev pozisyonu
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+                
+                // Tüm evlerin toplam genişliğini hesapla
+                let totalHousesWidth = 0;
+                const housesPattern = [
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.hotel, name: 'hotel' },
+                    { sprite: sprites.island.home1, name: 'home1' }
+                ];
+                
+                for (let i = 0; i < housesPattern.length; i++) {
+                    const house = housesPattern[i];
+                    if (house.sprite && house.sprite.complete) {
+                        const houseWidth = house.sprite.width * houseScale;
+                        totalHousesWidth += houseWidth;
+                        if (i < housesPattern.length - 1) {
+                            totalHousesWidth += houseSpacing; // Son evden sonra boşluk ekleme
+                        }
+                    }
+                }
+                
+                // Son evin sağ kenarı
+                const lastHouseRight = houseStartX + totalHousesWidth;
+                
             // Kamera oyuncunun etrafında ortalanır
+            camera.x = player.x - canvas.width / 2 + player.width / 2;
+                
+                // Kamera sınırları (ada sahnesi için)
+                if (camera.x < 0) camera.x = 0;
+                // İskele sonuna kadar + ekstra geniş alan takip et (deniz görünsün)
+                const islandDockX = lastHouseRight + 100; // 50 piksel sağa kaydırıldı
+                const islandDockWidth = 180;
+                const sceneEndX = islandDockX + islandDockWidth + 800; // Ekstra 800 piksel daha sağa (deniz ve tekne görünsün)
+                const maxCameraX = sceneEndX - canvas.width;
+                if (maxCameraX > 0 && camera.x > maxCameraX) camera.x = maxCameraX;
+            } else {
+                // Normal gameplay için kamera
             camera.x = player.x - canvas.width / 2 + player.width / 2;
 
             // Kamera sınırları (harita dışına çıkmasın)
             if (camera.x < 0) camera.x = 0;
             if (camera.x > game.mapWidth - canvas.width) {
                 camera.x = game.mapWidth - canvas.width;
+                }
             }
 
             // Y ekseninde kamera sabit (istersek yukarı-aşağı da takip edebilir)
@@ -826,6 +1126,235 @@
 
         // Update hedgehog (kirpi hareketi ve açılış sahnesi)
         function updateHedgehog() {
+            // Zemin seviyesi kontrolü - TÜM SAHNELERDE AYNI ZEMİN SEVİYESİ
+            let groundLevel = GROUND_LEVEL;
+            
+            // Gameplay sahnesi: İskele başlangıcına kadar gidebilir
+            if (game.sceneState === 'gameplay') {
+                if (dockX !== null) {
+                    // İskele başlangıcına kadar git, daha ileriye gidemesin
+                    if (hedgehog.x + hedgehog.width > dockX) {
+                        hedgehog.x = dockX - hedgehog.width;
+                    }
+                }
+            }
+            
+            // Ada sınırları kontrolü (sadece onIsland sahnesi için)
+            if (game.sceneState === 'onIsland') {
+                const islandXWorld = canvas.width / 2; // Ada merkezi
+                
+                // Evlerin pozisyonlarını hesapla (karakter sınırları için)
+                const houseStartX = islandXWorld - 400; // İlk ev pozisyonu
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+                
+                // Tüm evlerin toplam genişliğini hesapla
+                let totalHousesWidth = 0;
+                const housesPattern = [
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.hotel, name: 'hotel' },
+                    { sprite: sprites.island.home1, name: 'home1' }
+                ];
+                
+                for (let i = 0; i < housesPattern.length; i++) {
+                    const house = housesPattern[i];
+                    if (house.sprite && house.sprite.complete) {
+                        const houseWidth = house.sprite.width * houseScale;
+                        totalHousesWidth += houseWidth;
+                        if (i < housesPattern.length - 1) {
+                            totalHousesWidth += houseSpacing;
+                        }
+                    }
+                }
+                
+                // Karakter sınırları: İlk evin solundan iskele başlangıcına kadar
+                const islandLeft = houseStartX - 50; // Biraz sol taraftan boşluk
+                const lastHouseRight = houseStartX + totalHousesWidth;
+                const islandDockX = lastHouseRight + 100; // İskele başlangıcı
+                const islandDockWidth = 180;
+                const islandRight = islandDockX; // İskele başlangıcına kadar (daha ileriye gidemez)
+                
+                if (hedgehog.x < islandLeft) {
+                    hedgehog.x = islandLeft;
+                }
+                if (hedgehog.x + hedgehog.width > islandRight) {
+                    hedgehog.x = islandRight - hedgehog.width;
+                }
+            }
+            
+            // Hedgehog zemin kontrolü - her frame güncelle
+            if (hedgehog.y + hedgehog.height >= groundLevel) {
+                hedgehog.y = groundLevel - hedgehog.height;
+            }
+            
+            // OnIsland sahnesi: Kirpi otele doğru yürür
+            if (game.sceneState === 'onIsland' && !game.innEntered) {
+                const playerIsStationary = Math.abs(player.velocityX) < 0.5;
+                const islandXWorld = canvas.width / 2;
+                
+                // Evlerin pozisyonlarını hesapla (otel pozisyonu için) - drawOnIsland ile aynı mantık
+                const houseStartX = islandXWorld - 400;
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+                
+                // Evlerin sırası: home1, home2, home1, home2, hotel, home1
+                const housesPattern = [
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.hotel, name: 'hotel' },
+                    { sprite: sprites.island.home1, name: 'home1' }
+                ];
+                
+                // Otel pozisyonunu bul (5. sırada - index 4)
+                let hotelWorldX = null;
+                let hotelWidth = 96 * houseScale; // Varsayılan
+                
+                let currentHouseX = houseStartX;
+                for (let i = 0; i < housesPattern.length; i++) {
+                    const house = housesPattern[i];
+                    if (house.sprite && house.sprite.complete) {
+                        const houseWidth = house.sprite.width * houseScale;
+                        
+                        // Otel pozisyonunu kaydet (5. ev - index 4)
+                        if (i === 4 && house.name === 'hotel') {
+                            hotelWorldX = currentHouseX;
+                            hotelWidth = houseWidth;
+                            break;
+                        }
+                        
+                        // Bir sonraki ev pozisyonu
+                        currentHouseX += houseWidth + houseSpacing;
+                    }
+                }
+                
+                // Eğer otel pozisyonu hesaplanamadıysa, fallback kullan
+                if (hotelWorldX === null) {
+                    hotelWorldX = houseStartX;
+                    // İlk 4 evin genişliklerini topla
+                    if (sprites.island.home1 && sprites.island.home1.complete && 
+                        sprites.island.home2 && sprites.island.home2.complete) {
+                        const home1Width = sprites.island.home1.width * houseScale;
+                        const home2Width = sprites.island.home2.width * houseScale;
+                        hotelWorldX += (home1Width + houseSpacing) + (home2Width + houseSpacing) + 
+                                        (home1Width + houseSpacing) + (home2Width + houseSpacing);
+                    }
+                }
+                
+                // Baloncuk ayarları (sadece otel etkileşimi olmadıysa)
+                if (!game.innEntered) {
+                    hedgehog.showSpeechBubble = true;
+                    hedgehog.speechText = 'Birlikte kaldığımız ilk otele gidiyoruz. Heyecanlı mısın?';
+                    hedgehog.canMoveWithBubble = true;
+                }
+                
+                // Eğer rakunun hareket etmesini bekliyorsa ve rakun hareket etti, ekran hedefini iptal et
+                if (hedgehog.waitingForPlayer && !playerIsStationary) {
+                    hedgehog.waitingForPlayer = false;
+                    hedgehog.screenTargetX = null;
+                    // canMoveWithBubble true ise baloncuk gösterilmeye devam etsin
+                    
+                    // Otel hedefini her zaman güncelle (doğru pozisyon)
+                    const correctTargetX = hotelWorldX + (hotelWidth / 2) - hedgehog.width - 30;
+                    hedgehog.targetX = correctTargetX;
+                hedgehog.isMoving = true;
+                }
+                
+                // Eğer ekran hedefinde bekliyorsa, ekran hedefinde kal
+                if (hedgehog.waitingForPlayer && hedgehog.screenTargetX !== null) {
+                    // Ekran pozisyonunu her frame güncelle (kamera hareket edebilir)
+                    const targetScreenX = canvas.width * 0.7;
+                    const targetWorldX = camera.x + targetScreenX;
+                    hedgehog.screenTargetX = targetWorldX; // Hedefi güncelle
+                    
+                    const distanceToScreenTarget = Math.abs(hedgehog.x - targetWorldX);
+                    
+                    if (distanceToScreenTarget > 10) {
+                        // Ekran hedefine doğru hareket et
+                        hedgehog.isMoving = true;
+                        if (hedgehog.x < targetWorldX) {
+                            hedgehog.x += hedgehog.speed;
+                        } else {
+                            hedgehog.x -= hedgehog.speed;
+                        }
+                    } else {
+                        // Ekran hedefinde dur ve baloncuk göster
+                        hedgehog.isMoving = false;
+                        hedgehog.showSpeechBubble = true;
+                    }
+                    return;
+                }
+                
+                // Eğer hedef yoksa veya hedef yanlışsa (otel hedefine uymuyorsa), oteli hedef olarak ayarla
+                const expectedTargetX = hotelWorldX + (hotelWidth / 2) - hedgehog.width - 30;
+                if (hedgehog.targetX === null || Math.abs(hedgehog.targetX - expectedTargetX) > 100) {
+                    // Hedef yoksa veya yanlışsa, doğru hedefi ayarla
+                    hedgehog.targetX = expectedTargetX;
+                    hedgehog.isMoving = true;
+                }
+                
+                // Otel hedefine gitme mantığı
+                if (hedgehog.targetX !== null && hedgehog.isMoving) {
+                    const hedgehogCenterX = hedgehog.x + hedgehog.width / 2;
+                    const targetCenterX = hedgehog.targetX + hedgehog.width / 2;
+                    const distance = Math.abs(hedgehogCenterX - targetCenterX);
+                    
+                    // Kirpi ekrandan çıkmamalı
+                    const hedgehogScreenX = hedgehog.x - camera.x;
+                    const hedgehogIsVisible = hedgehogScreenX >= 0 && hedgehogScreenX <= canvas.width - hedgehog.width;
+                    
+                    // Gelecekteki pozisyonu kontrol et
+                    let nextX = hedgehog.x;
+                    if (hedgehog.x < hedgehog.targetX) {
+                        nextX = hedgehog.x + hedgehog.speed;
+                    } else {
+                        nextX = hedgehog.x - hedgehog.speed;
+                    }
+                    const nextScreenX = nextX - camera.x;
+                    const willBeVisible = nextScreenX >= 0 && nextScreenX <= canvas.width - hedgehog.width;
+                    
+                    // Eğer kirpi ekrandan çıkacaksa, dur ve ekranda görünür bir noktaya gel
+                    if (!willBeVisible || nextScreenX + hedgehog.width > canvas.width * 0.7) {
+                        // Ekrandan çıkacak, dur ve ekran hedefine gel
+                        hedgehog.isMoving = false;
+                        hedgehog.waitingForPlayer = true;
+                        const targetScreenX = canvas.width * 0.7;
+                        hedgehog.screenTargetX = camera.x + targetScreenX;
+                        return;
+                    }
+
+                // Hedefe doğru hareket et
+                    if (distance > 10) {
+                    if (hedgehog.x < hedgehog.targetX) {
+                        hedgehog.x += hedgehog.speed;
+                    } else {
+                        hedgehog.x -= hedgehog.speed;
+                    }
+                } else {
+                        // Otel hedefine ulaşıldı
+                        hedgehog.isMoving = false;
+                        hedgehog.targetX = null;
+                    }
+                }
+                return;
+            }
+            
+            // OnIsland sahnesi: Otel etkileşimi tamamlandıktan sonra diyalog baloncuğunu koru
+            if (game.sceneState === 'onIsland' && game.innEntered) {
+                // Diyalog baloncuğu zaten ayarlanmış (handleAnswer'da), burada sadece koru
+                // Eğer baloncuk gösterilmiyorsa ve metin eski metinse, yeni metni ayarla
+                if (!hedgehog.showSpeechBubble || hedgehog.speechText === 'Birlikte kaldığımız ilk otele gidiyoruz. Heyecanlı mısın?') {
+                    hedgehog.showSpeechBubble = true;
+                    hedgehog.speechText = 'Bu kadar saçma bir şey ancak bizim başımıza gelebilirdi 😂';
+                }
+                // Hareket etmesini engelle veya istediğin davranışı ekle
+                return;
+            }
+            
             // Gameplay sahnesi: Kirpi Caffè Nero binasına doğru yürür
             if (game.sceneState === 'gameplay') {
                 // Rakunun hareket etmediğini kontrol et
@@ -1246,8 +1775,8 @@
             // ctx.strokeStyle = 'blue';
             // ctx.strokeRect(screenX, screenY, hedgehog.width, hedgehog.height);
 
-            // Diyalog baloncuğu çiz (gameplay sahnesinde ve gösterilmesi gerekiyorsa)
-            if (game.sceneState === 'gameplay' && hedgehog.showSpeechBubble) {
+            // Diyalog baloncuğu çiz (gameplay ve onIsland sahnelerinde gösterilmesi gerekiyorsa)
+            if ((game.sceneState === 'gameplay' || game.sceneState === 'onIsland') && hedgehog.showSpeechBubble) {
                 const bubbleX = screenX + hedgehog.width / 2;
                 const bubbleY = screenY - 50; // Kirpi'nin kafasının üstünde
                 const text = hedgehog.speechText; // Dinamik metin
@@ -1340,7 +1869,7 @@
         function drawDock() {
             if (dockX === null) return; // İskele pozisyonu henüz hesaplanmadı
             
-            const groundLevel = 550;
+            const groundLevel = GROUND_LEVEL;
             const waterLevel = groundLevel + 10; // Su seviyesi (zemin seviyesine yakın)
             const dockPlatformHeight = 25; // İskele platformu kalınlığı
             const dockPlatformY = waterLevel - dockPlatformHeight - 5; // İskele platformu su üstünde
@@ -1605,7 +2134,7 @@
             // Ada iç detayları (kumsal şeridi)
             ctx.fillStyle = '#F4A460'; // Kum rengi
             ctx.beginPath();
-            ctx.ellipse(islandX, islandY + islandRadius * 0.3, islandRadius * 0.9, islandRadius * 0.15, 0, 0, Math.PI * 2);
+            ctx.ellipse(islandX, islandY + islandRadius * 0.3, islandRadius * 0.75, islandRadius * 0.15, 0, 0, Math.PI * 2);
             ctx.fill();
             
             // Ada üzerinde ağaçlar (basit çizim) - sabit pozisyonlar
@@ -1700,11 +2229,748 @@
             boat.isMoving = true;
         }
 
-        // Tekne rotası hesaplama (kıvrımlı bezier curve)
+        // Ada sahnesi başlatma (karakterler adaya indiğinde)
+        function initializeOnIslandScene() {
+            // Ada pozisyonu (dünya koordinatları - drawOnIsland ile aynı)
+            const islandXWorld = canvas.width / 2; // Ada ekranın ortasında
+            const islandY = GROUND_LEVEL; // TÜM SAHNELERDE AYNI ZEMİN SEVİYESİ
+            
+            // Ada zemin seviyesi (tile zemininin üstü)
+            const islandGroundY = GROUND_LEVEL; // TÜM SAHNELERDE AYNI ZEMİN SEVİYESİ
+            
+            // Karakterler ekranın solundan başlamalı
+            const startX = 50; // Ekranın solundan 50 piksel içeriden başla
+            
+            // Rakun pozisyonu: Ekranın solunda, zemin seviyesinde (dünya koordinatları)
+            player.x = startX;
+            player.y = islandGroundY - player.height;
+            player.velocityX = 0;
+            player.velocityY = 0;
+            player.isOnGround = true;
+            
+            // Kirpi pozisyonu: Rakun'un solunda ama ekranın içinde kalmalı (dünya koordinatları)
+            hedgehog.x = Math.max(20, player.x - 120); // En az 20 piksel soldan, yoksa ekranın dışına çıkar
+            hedgehog.y = islandGroundY - hedgehog.height - 10; // Rakun'a göre biraz daha yukarı (görsel)
+            
+            // Otel pozisyonunu hesapla (kirpi otele gitmeli) - drawOnIsland ile aynı mantık
+            const houseSpacing = 40;
+            const houseScale = 1.35;
+            
+            // Evlerin sırası: home1, home2, home1, home2, hotel, home1
+            const housesPattern = [
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.hotel, name: 'hotel' },
+                { sprite: sprites.island.home1, name: 'home1' }
+            ];
+            
+            // Otel pozisyonunu bul (5. sırada - index 4)
+            let hotelWorldX = null;
+            let hotelWidth = 96 * houseScale; // Varsayılan
+            
+            let currentHouseX = islandXWorld - 400;
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+                if (house.sprite && house.sprite.complete) {
+                    const houseWidth = house.sprite.width * houseScale;
+                    
+                    // Otel pozisyonunu kaydet (5. ev - index 4)
+                    if (i === 4 && house.name === 'hotel') {
+                        hotelWorldX = currentHouseX;
+                        hotelWidth = houseWidth;
+                        break;
+                    }
+                    
+                    // Bir sonraki ev pozisyonu
+                    currentHouseX += houseWidth + houseSpacing;
+                }
+            }
+            
+            // Eğer otel pozisyonu hesaplanamadıysa, fallback kullan
+            if (hotelWorldX === null) {
+                hotelWorldX = islandXWorld - 400;
+                // İlk 4 evin genişliklerini topla
+                if (sprites.island.home1 && sprites.island.home1.complete && 
+                    sprites.island.home2 && sprites.island.home2.complete) {
+                    const home1Width = sprites.island.home1.width * houseScale;
+                    const home2Width = sprites.island.home2.width * houseScale;
+                    hotelWorldX += (home1Width + houseSpacing) + (home2Width + houseSpacing) + 
+                                    (home1Width + houseSpacing) + (home2Width + houseSpacing);
+                }
+            }
+            
+            // Kirpi otelin önüne gitmeli (otel merkezinin biraz solunda)
+            // Sadece otel etkileşimi tamamlanmadıysa baloncuk ayarlarını yap
+            if (!game.innEntered) {
+                hedgehog.targetX = hotelWorldX + (hotelWidth / 2) - hedgehog.width - 30;
+                hedgehog.isMoving = true;
+                hedgehog.showSpeechBubble = true;
+                hedgehog.speechText = 'Birlikte kaldığımız ilk otele gidiyoruz. Heyecanlı mısın?';
+                hedgehog.canMoveWithBubble = true; // Baloncuk gösterilirken hareket edebilir
+                hedgehog.waitingForPlayer = false;
+            }
+            
+            // Kamera ayarı - karakterleri ekranın solunda göster
+            camera.x = 0; // Ekranın solundan başla
+            camera.y = 0; // Y ekseninde kamerayı hareket ettirmeyelim
+            
+            // Dekorasyonları sıfırla (yeniden hesaplanacak)
+            // Sprite'lar asenkron yüklendiği için drawOnIsland() içinde tekrar kontrol edilecek
+            game.islandDecorations = [];
+            game.islandDecorationsInitialized = false;
+        }
+
+        // Ada üzerinde oyun sahnesi çizimi (karakterler adaya indikten sonra)
+        function drawOnIsland() {
+            // Gökyüzü gradient (arka plan - deniz yok, sadece gökyüzü)
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');      // Gökyüzü mavisi (üst)
+            gradient.addColorStop(0.7, '#B0E0E6');   // Açık mavi
+            gradient.addColorStop(1, '#E0F6FF');      // Çok açık mavi (alt)
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Ada pozisyonu (dünya koordinatları - kameraya göre offset uygulanacak)
+            const islandXWorld = canvas.width / 2; // Ada ekranın ortasında (dünya koordinatı)
+            const islandY = GROUND_LEVEL; // TÜM SAHNELERDE AYNI ZEMİN SEVİYESİ
+            
+            // Ada zemin merkezi (kameraya göre offset)
+            const islandX = islandXWorld - camera.x;
+            
+            // Evleri çiz: home1, home2, home1, home2, hotel, home1
+            const housesPattern = [
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.hotel, name: 'hotel' },
+                { sprite: sprites.island.home1, name: 'home1' }
+            ];
+            
+            let currentHouseX = islandXWorld - 400; // İlk ev pozisyonu (soldan başla)
+            const houseSpacing = 40; // Evler arası boşluk (azaltıldı)
+            const houseScale = 1.35;
+            
+            // Evlerin toplam genişliğini hesapla (zemin çizimi için)
+            let totalHousesWidth = 0;
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+                if (house.sprite && house.sprite.complete) {
+                    const houseWidth = house.sprite.width * houseScale;
+                    totalHousesWidth += houseWidth;
+                    if (i < housesPattern.length - 1) {
+                        totalHousesWidth += houseSpacing;
+                    }
+                }
+            }
+            
+            // Zemin başlangıç ve bitiş pozisyonları (evlerin solundan sağına kadar + ekstra boşluk)
+            // NOT: Zemin iskele'ye kadar uzanmalı, iskele alanı deniz olacak
+            const houseStartX = islandXWorld - 400; // İlk ev pozisyonu
+            const groundStartX = houseStartX - 100; // İlk evin solundan 100 piksel önce
+            const lastHouseRight = houseStartX + totalHousesWidth;
+            const islandDockX = lastHouseRight + 100; // Son evden 100 piksel sonra iskele (50 piksel sağa kaydırıldı)
+            const islandDockWidth = 180;
+            const groundEndX = islandDockX; // Zemin iskele başlangıcına kadar (iskele deniz alanında)
+            
+            // ÖNCE: Son evden sonra deniz çiz (zemin tile'larından önce, arka planda)
+            const groundLevel = GROUND_LEVEL;
+            const waterLevel = groundLevel + 10;
+            const seaStartX = islandDockX - camera.x; // İskele başlangıcından itibaren deniz
+            const seaEndX = islandDockX + islandDockWidth + 800 - camera.x; // İskele sonundan 800 piksel daha sağa kadar
+            const seaStartY = waterLevel - camera.y;
+            const seaHeight = canvas.height - seaStartY;
+            
+            // Deniz (iskele başlangıcından itibaren tüm alan)
+            ctx.fillStyle = '#4169E1';
+            ctx.fillRect(seaStartX, seaStartY, seaEndX - seaStartX, seaHeight);
+            
+            // Deniz dalga efekti
+            ctx.strokeStyle = '#5B9BD5';
+            ctx.lineWidth = 2;
+            const waveCount = Math.floor(seaHeight / 15);
+            for (let i = 0; i < waveCount; i++) {
+                const waveY = seaStartY + i * 15;
+                ctx.beginPath();
+                ctx.moveTo(seaStartX, waveY);
+                for (let x = seaStartX; x < seaEndX; x += 30) {
+                    ctx.lineTo(x, waveY + Math.sin((x + camera.x) / 20) * 4);
+                }
+                ctx.stroke();
+            }
+            
+            // Zemin tile'larını çiz (ground_pref.png kullanarak) - Karakterlerin yürüdüğü yollar
+            if (sprites.island.groundPref && sprites.island.groundPref.complete) {
+                const groundPrefImage = sprites.island.groundPref;
+                const originalTileWidth = groundPrefImage.width;
+                const originalTileHeight = groundPrefImage.height;
+                
+                // Tile'ı büyütmek için scale faktörü (2x, 3x vb. olabilir)
+                const tileScale = 1.25; // 2x büyüklükte çiz (istediğiniz boyuta göre 3, 4 vb. yapabilirsiniz)
+                const tileWidth = originalTileWidth * tileScale;
+                const tileHeight = originalTileHeight * tileScale + 20; // Yüksekliği 10 piksel artır
+                
+                // Zemin tile'larını tekrar ederek çiz (tiled pattern)
+                // Evlerin solundan sağına kadar + ekstra boşluk
+                const tileStartX = Math.floor((groundStartX - camera.x) / tileWidth) * tileWidth;
+                const tileEndX = Math.ceil((groundEndX - camera.x) / tileWidth) * tileWidth;
+                
+                for (let x = tileStartX; x <= tileEndX; x += tileWidth) {
+                    const screenX = x;
+                    const screenY = islandY;
+                    
+                    // Tile çiz (eğer ekranda görünüyorsa) - büyütülmüş boyutta
+                    if (screenX + tileWidth > 0 && screenX < canvas.width) {
+                        ctx.drawImage(
+                            sprites.island.groundPref,
+                            0, 0, originalTileWidth, originalTileHeight, // Kaynak (orijinal sprite)
+                            screenX, screenY, tileWidth, tileHeight // Hedef (büyütülmüş boyut)
+                        );
+                    }
+                }
+            } else {
+                // Fallback: Eğer tile set yüklenmediyse basit yeşil zemin
+                ctx.fillStyle = '#90EE90';
+                const groundScreenStartX = groundStartX - camera.x;
+                const groundScreenEndX = groundEndX - camera.x;
+                ctx.fillRect(groundScreenStartX, islandY, groundScreenEndX - groundScreenStartX, 100);
+            }
+            
+            // Dekorasyonları hesapla (eğer henüz hesaplanmadıysa ve sprite'lar yüklendiyse)
+            // Her frame kontrol et (sprite'lar asenkron yükleniyor olabilir)
+            if (!game.islandDecorationsInitialized || game.islandDecorations.length === 0) {
+                // Tüm dekorasyon sprite'larının yüklendiğini kontrol et
+                let allDecorationsLoaded = true;
+                const decorationTypes = ['lamp', 'sit', 'tree', 'wallHorizontal', 'wallVertical'];
+                for (let d = 0; d < decorationTypes.length; d++) {
+                    const decType = decorationTypes[d];
+                    const decSprite = sprites.island.decoration[decType];
+                    if (!decSprite || !decSprite.complete) {
+                        allDecorationsLoaded = false;
+                        break;
+                    }
+                }
+                
+                // Eğer tüm sprite'lar yüklendiyse ve henüz dekorasyonlar hesaplanmadıysa
+                if (allDecorationsLoaded && game.islandDecorations.length === 0) {
+                    game.islandDecorations = [];
+                    
+                    // Eğer dekorasyon sprite'ları yüklendiyse, dekorasyonları hesapla
+                    const wallVerticalSprite = sprites.island.decoration.wallVertical;
+                    const wallPadding = 10; // Ev ile çit arasındaki boşluk
+                    const wallVWidth = wallVerticalSprite.width;
+                    const decorationHouseSpacing = 40; // Evler arası boşluk (drawOnIsland ile aynı olmalı)
+                    
+                    let tempHouseX = islandXWorld - 400; // Geçici pozisyon hesaplama için
+                    
+                    // Tüm evlerin ve çitlerin sınırlarını hesapla (çakışma kontrolü için)
+                    const houseBounds = [];
+                    for (let i = 0; i < housesPattern.length; i++) {
+                        const house = housesPattern[i];
+                        if (house.sprite && house.sprite.complete) {
+                            const houseWidth = house.sprite.width * houseScale;
+                            const houseLeft = tempHouseX;
+                            const houseRight = tempHouseX + houseWidth;
+                            
+                            // Çit sınırları
+                            const fenceLeft = houseLeft - wallPadding - wallVWidth;
+                            const fenceRight = houseRight + wallPadding + wallVWidth;
+                            
+                            houseBounds.push({
+                                houseLeft: houseLeft,
+                                houseRight: houseRight,
+                                fenceLeft: fenceLeft,
+                                fenceRight: fenceRight,
+                                fenceLeftInner: fenceLeft + wallVWidth,  // Çitin sağ kenarı (iç kenar)
+                                fenceRightInner: fenceRight - wallVWidth // Çitin sol kenarı (iç kenar)
+                            });
+                            
+                            // Bir sonraki ev pozisyonu
+                            tempHouseX = houseRight + decorationHouseSpacing;
+                        }
+                    }
+                    
+                    // Her evin SAĞ TARAFINDAKI ev-çit boşluğuna dekorasyon yerleştir
+                    // Ev ile çit arası boşluk: houseRight ile (fenceRight - wallVWidth) arası
+                    for (let i = 0; i < housesPattern.length; i++) {
+                        const house = houseBounds[i];
+                        
+                        if (house) {
+                            // Evin sağ tarafındaki ev-çit boşluğu
+                            // Ev sağ kenarı: house.houseRight
+                            // Sağ çit sol kenarı: house.fenceRight - wallVWidth
+                            // Bu arasındaki boşluk: wallPadding (10 piksel)
+                            const decorationZoneStart = house.houseRight; // Evin sağ kenarı
+                            const decorationZoneEnd = house.fenceRight - wallVWidth; // Sağ çitin sol kenarı
+                            const decorationZoneWidth = decorationZoneEnd - decorationZoneStart;
+                            
+                            // Eğer boşluk yeterince genişse dekorasyon ekle
+                            if (decorationZoneWidth > 5) {
+                                // Her ev için farklı dekorasyon seç (ev index'ine göre rotasyon)
+                                const nonWallTypes = ['lamp', 'sit', 'tree'];
+                                // Her ev için farklı bir dekorasyon: index'e göre rotasyon yap
+                                // Bu sayede her ev farklı bir dekorasyona sahip olur
+                                const decorationIndex = i % nonWallTypes.length;
+                                const randomType = nonWallTypes[decorationIndex];
+                                const decorationSprite = sprites.island.decoration[randomType];
+                                
+                                if (decorationSprite && decorationSprite.complete) {
+                                    // Ev-çit boşluğunun ortasına yerleştir, sonra 100 piksel sola kaydır
+                                    const zoneCenter = (decorationZoneStart + decorationZoneEnd) / 2;
+                                    // Dekorasyonun sol kenarı = merkez - sprite genişliği/2 - 100 piksel
+                                    const decorationX = zoneCenter - decorationSprite.width / 2 - 17;
+                                    
+                                    // Dekorasyonu kaydet (dünya koordinatı olarak)
+                                    // Not: Dekorasyon boşluğun dışına taşsa bile ekliyoruz (görsel olarak iyi görünecek)
+                                    game.islandDecorations.push({
+                                        type: randomType,
+                                        sprite: decorationSprite,
+                                        worldX: decorationX,
+                                        worldY: islandY
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Özel: 2. ev (index 1) ile 3. ev (index 2) arasına çiçek ekle
+                    // Çiçek sprite'ı yüklenene kadar bekle (her frame kontrol et)
+                    if (houseBounds.length >= 3 && sprites.island.decoration.cicek) {
+                        // Sprite yüklendi mi ve hata durumunda değil mi kontrol et
+                        if (sprites.island.decoration.cicek.complete && sprites.island.decoration.cicek.naturalWidth > 0) {
+                            const ev2 = houseBounds[1];  // 2. ev (index 1)
+                            const ev3 = houseBounds[2];  // 3. ev (index 2)
+                            
+                            // Evler arası boşluğun ortası
+                            const ev2SağKenarı = ev2.houseRight;
+                            const ev3SolKenarı = ev3.houseLeft;
+                            const evlerArasıBoşluk = ev3SolKenarı - ev2SağKenarı;
+                            const evlerArasıMerkez = ev2SağKenarı + evlerArasıBoşluk / 2;
+                            
+                            // Çiçeği evler arası boşluğun ortasına yerleştir
+                            const cicekX = evlerArasıMerkez - sprites.island.decoration.cicek.width / 2 - 100;
+                            
+                            // Çiçek zaten eklenmiş mi kontrol et (tekrar eklememek için)
+                            const cicekAlreadyAdded = game.islandDecorations.some(dec => dec.type === 'cicek');
+                            
+                            if (!cicekAlreadyAdded) {
+                                game.islandDecorations.push({
+                                    type: 'cicek',
+                                    sprite: sprites.island.decoration.cicek,
+                                    worldX: cicekX,
+                                    worldY: islandY
+                                });
+                            }
+                        }
+                    }
+                    
+                    game.islandDecorationsInitialized = true;
+                }
+            }
+            
+            // Evleri çiz ve etraflarına çit ekle
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+                
+                // Sprite yüklenmiş mi kontrol et
+                if (house.sprite && house.sprite.complete) {
+                    const originalWidth = house.sprite.width;
+                    const originalHeight = house.sprite.height;
+                    
+                    // Evlerin boyutunu 1.35 katına çıkar
+                    const houseWidth = originalWidth * houseScale;
+                    const houseHeight = originalHeight * houseScale;
+                    
+                    // Ekranda görünüyor mu kontrol et
+                    const screenX = currentHouseX - camera.x;
+                    // Evlerin alt kenarı zemine tam otursun
+                    // Sprite'ların altındaki boşluğu kompanse etmek için pozitif offset (evi aşağı çeker)
+                    let verticalOffset = 0;
+                    if (house.name === 'home1') {
+                        // home1 sprite'ının altında boşluk var, daha aşağı çek
+                        verticalOffset = 23; // Pozitif değer evi daha aşağı çeker (zemine oturtur)
+                    } else if (house.name === 'home2') {
+                        // home2 sprite'ının altında az boşluk var
+                        verticalOffset = 15; // Küçük offset
+                    } else if (house.name === 'hotel') {
+                        // Otel sprite'ının altında boşluk var
+                        verticalOffset = 15; // Orta offset
+                    }
+                    // Evlerin alt kenarı zemin seviyesinde olmalı (islandY)
+                    // Pozitif offset ekleyerek evi aşağı çekiyoruz
+                    const screenY = islandY - houseHeight + verticalOffset;
+                    
+                    if (screenX + houseWidth > 0 && screenX < canvas.width) {
+                        // Ev çitleri: Ev çizilmeden önce çitleri çiz (arkada kalması için)
+                        const wallVerticalSprite = sprites.island.decoration.wallVertical;
+                        const wallHorizontalSprite = sprites.island.decoration.wallHorizontal;
+                        const wallPadding = 10; // Ev ile çit arasındaki boşluk
+                        
+                        if (wallVerticalSprite && wallVerticalSprite.complete && 
+                            wallHorizontalSprite && wallHorizontalSprite.complete) {
+                            
+                            const wallVWidth = wallVerticalSprite.width;
+                            const wallVHeight = wallVerticalSprite.height;
+                            const wallHWidth = wallHorizontalSprite.width;
+                            const wallHHeight = wallHorizontalSprite.height;
+                            
+                            // Çit pozisyonları (evin etrafına)
+                            const fenceLeft = currentHouseX - wallPadding - wallVWidth; // Sol çit
+                            const fenceRight = currentHouseX + houseWidth + wallPadding; // Sağ çit
+                            const fenceBottom = islandY; // Alt çit (zemin seviyesinde)
+                            const fenceTop = screenY - wallPadding; // Üst çit
+                            
+                            // Sol çit (dikey)
+                            const fenceLeftScreenX = fenceLeft - camera.x;
+                            if (fenceLeftScreenX + wallVWidth > 0 && fenceLeftScreenX < canvas.width) {
+                                // Sol çit, evin solundan üstüne kadar
+                                const fenceTopY = fenceTop;
+                                const fenceBottomY = fenceBottom;
+                                const fenceHeight = fenceBottomY - fenceTopY;
+                                
+                                // Çit yüksekliği boyunca dikey çitleri tekrarla
+                                for (let y = fenceTopY; y < fenceBottomY; y += wallVHeight) {
+                                    const currentFenceHeight = Math.min(wallVHeight, fenceBottomY - y);
+                                    const fenceScreenY = y - camera.y;
+                                    
+                                    if (fenceScreenY + currentFenceHeight > 0 && fenceScreenY < canvas.height) {
+                                        ctx.drawImage(
+                                            wallVerticalSprite,
+                                            0, 0, wallVWidth, currentFenceHeight, // Kaynak
+                                            fenceLeftScreenX, fenceScreenY, wallVWidth, currentFenceHeight // Hedef
+                                        );
+                                    }
+                                }
+                            }
+                            
+                            // Sağ çit (dikey)
+                            const fenceRightScreenX = fenceRight - camera.x;
+                            if (fenceRightScreenX > 0 && fenceRightScreenX < canvas.width) {
+                                // Sağ çit, evin sağından üstüne kadar
+                                const fenceTopY = fenceTop;
+                                const fenceBottomY = fenceBottom;
+                                
+                                // Çit yüksekliği boyunca dikey çitleri tekrarla
+                                for (let y = fenceTopY; y < fenceBottomY; y += wallVHeight) {
+                                    const currentFenceHeight = Math.min(wallVHeight, fenceBottomY - y);
+                                    const fenceScreenY = y - camera.y;
+                                    
+                                    if (fenceScreenY + currentFenceHeight > 0 && fenceScreenY < canvas.height) {
+                                        ctx.drawImage(
+                                            wallVerticalSprite,
+                                            0, 0, wallVWidth, currentFenceHeight, // Kaynak
+                                            fenceRightScreenX, fenceScreenY, wallVWidth, currentFenceHeight // Hedef
+                                        );
+                                    }
+                                }
+                            }
+                            
+                            // Üst çit (yatay)
+                            const fenceTopScreenY = fenceTop - camera.y;
+                            if (fenceTopScreenY + wallHHeight > 0 && fenceTopScreenY < canvas.height) {
+                                // Üst çit, sol çit ile sağ çit arasında
+                                const fenceStartX = fenceLeft;
+                                const fenceEndX = fenceRight + wallVWidth;
+                                const fenceWidth = fenceEndX - fenceStartX;
+                                
+                                // Çit genişliği boyunca yatay çitleri tekrarla
+                                for (let x = fenceStartX; x < fenceEndX; x += wallHWidth) {
+                                    const currentFenceWidth = Math.min(wallHWidth, fenceEndX - x);
+                                    const fenceScreenX = x - camera.x;
+                                    
+                                    if (fenceScreenX + currentFenceWidth > 0 && fenceScreenX < canvas.width) {
+                                        ctx.drawImage(
+                                            wallHorizontalSprite,
+                                            0, 0, currentFenceWidth, wallHHeight, // Kaynak
+                                            fenceScreenX, fenceTopScreenY, currentFenceWidth, wallHHeight // Hedef
+                                        );
+                                    }
+                                }
+                            }
+                            
+                            // Alt çit kaldırıldı - evlerin yola bakan tarafında çit olmamalı
+                        }
+                        
+                        // Ev çiz
+                        ctx.drawImage(
+                            house.sprite,
+                            0, 0, originalWidth, originalHeight, // Kaynak (orijinal sprite)
+                            screenX, screenY, houseWidth, houseHeight // Hedef (büyütülmüş boyut)
+                        );
+                        
+                        // Otel için tabela ve "E" etkileşim sembolü
+                        if (house.name === 'hotel') {
+                            // Pixel-art stilinde ahşap tabela çiz (her zaman görünür)
+                            const signScreenX = screenX; // Otelin merkezi
+                            const signScreenY = screenY + 125; // Otelin üstünde
+                            const signWidth = 120; // Genişlik azaltıldı
+                            const signHeight = 42; // Yükseklik artırıldı (iki satır için)
+                            const poleHeight = 25; // Tabela direği yüksekliği
+                            
+                            ctx.save();
+                            // Pixel-art için image smoothing'i kapat
+                            ctx.imageSmoothingEnabled = false;
+                            
+                            // Tabela direği (otelin çatısına bağlı)
+                            ctx.fillStyle = '#8B4513'; // Kahverengi
+                            ctx.fillRect(signScreenX - 4, signScreenY + signHeight - 1, 8, poleHeight);
+                            // Direk gölgesi
+                            ctx.fillStyle = '#654321';
+                            ctx.fillRect(signScreenX - 3, signScreenY + signHeight, 6, poleHeight);
+                            
+                            // Tabela arka planı (ahşap görünümlü)
+                            // Ana arka plan - açık kahverengi
+                            ctx.fillStyle = '#D2691E';
+                            ctx.fillRect(signScreenX - signWidth / 2, signScreenY, signWidth, signHeight);
+                            
+                            // Ahşap dokusu - dikey çizgiler
+                            ctx.fillStyle = '#CD853F';
+                            for (let i = 0; i < signWidth; i += 4) {
+                                ctx.fillRect(signScreenX - signWidth / 2 + i, signScreenY, 1, signHeight);
+                            }
+                            
+                            // Tabela kenarları (kalın çerçeve)
+                            ctx.fillStyle = '#8B4513'; // Koyu kahverengi çerçeve
+                            ctx.fillRect(signScreenX - signWidth / 2, signScreenY, signWidth, 3); // Üst
+                            ctx.fillRect(signScreenX - signWidth / 2, signScreenY + signHeight - 3, signWidth, 3); // Alt
+                            ctx.fillRect(signScreenX - signWidth / 2, signScreenY, 3, signHeight); // Sol
+                            ctx.fillRect(signScreenX + signWidth / 2 - 3, signScreenY, 3, signHeight); // Sağ
+                            
+                            // Tabela gölgesi (derinlik için)
+                            ctx.fillStyle = '#654321';
+                            ctx.fillRect(signScreenX - signWidth / 2 + 2, signScreenY + 2, signWidth - 4, signHeight - 4);
+                            
+                            // Tabela metni (pixel-art stili - iki satır)
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.strokeStyle = '#000000';
+                            ctx.lineWidth = 1;
+                            ctx.font = 'bold 12px "Courier New", monospace'; // Pixel-art için monospace font
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            
+                            // İlk satır: "Triada Hotel" (üst satır)
+                            const line1Y = signScreenY + signHeight / 2 - 7;
+                            ctx.fillStyle = '#000000';
+                            ctx.fillText('Triada Hotel', signScreenX + 1, line1Y + 1);
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.fillText('Triada Hotel', signScreenX, line1Y);
+                            
+                            // İkinci satır: "Büyükada" (alt satır)
+                            const line2Y = signScreenY + signHeight / 2 + 7;
+                            ctx.fillStyle = '#000000';
+                            ctx.fillText('Büyükada', signScreenX + 1, line2Y + 1);
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.fillText('Büyükada', signScreenX, line2Y);
+                            
+                            ctx.restore();
+                            
+                            // "E" etkileşim sembolü (sadece etkileşim mümkünken göster)
+                            if (!game.innEntered) {
+                                const playerCenterX = player.x + player.width / 2;
+                                const houseCenterX = currentHouseX + houseWidth / 2;
+                                const distanceToHouse = Math.abs(playerCenterX - houseCenterX);
+                                
+                                if (distanceToHouse < 100 && playerCenterX >= currentHouseX - 20 && playerCenterX <= currentHouseX + houseWidth + 20) {
+                                    // "E" sembolü çiz
+                                    ctx.save();
+                                    ctx.fillStyle = '#FFFFFF';
+                                    ctx.strokeStyle = '#000000';
+                                    ctx.lineWidth = 2;
+                                    ctx.font = 'bold 20px Arial';
+                                    ctx.textAlign = 'center';
+                                    ctx.strokeText('E', screenX + houseWidth / 2, screenY - 30);
+                                    ctx.fillText('E', screenX + houseWidth / 2, screenY - 30);
+                                    ctx.restore();
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Bir sonraki ev pozisyonu (büyütülmüş genişlik kullan)
+                    currentHouseX += houseWidth + houseSpacing;
+                }
+            }
+            
+            // Saklanmış dekorasyonları çiz (bir kez hesaplanmış, sabit)
+            if (game.islandDecorations && game.islandDecorations.length > 0) {
+                for (let i = 0; i < game.islandDecorations.length; i++) {
+                    const decoration = game.islandDecorations[i];
+                    
+                    // Sprite'ın yüklenmiş ve hata durumunda olmadığını kontrol et
+                    if (decoration.sprite && decoration.sprite.complete && decoration.sprite.naturalWidth > 0) {
+                        // Dünya koordinatını ekran koordinatına çevir
+                        // Not: worldX zaten 1 piksel sola kaydırılmış olarak kaydedilmiş
+                        const decorationScreenX = decoration.worldX - camera.x;
+                        const decorationScreenY = decoration.worldY - decoration.sprite.height; // Zemine oturt
+                        
+                        // Ekranda görünüyor mu kontrol et
+                        if (decorationScreenX + decoration.sprite.width > 0 && decorationScreenX < canvas.width) {
+                            ctx.drawImage(
+                                decoration.sprite,
+                                decorationScreenX, decorationScreenY
+                            );
+                        }
+                    }
+                }
+            }
+            
+            // Son evden sonra iskele ve tekne çiz (ilk sahne gibi)
+            // Not: islandDockX, islandDockWidth, groundLevel, waterLevel ve deniz zaten yukarıda tanımlandı/çizildi
+            const dockPlatformHeight = 25; // İskele platformu kalınlığı
+            const dockPlatformY = waterLevel - dockPlatformHeight - 5; // İskele platformu su üstünde
+            const dockPoleHeight = 60; // İskele kazığı yüksekliği
+            
+            const dockScreenX = islandDockX - camera.x;
+            const dockScreenY = dockPlatformY - camera.y;
+            
+            // İskele çiz (ekranda görünüyorsa) - deniz üzerinde
+            if (dockScreenX + islandDockWidth > 0 && dockScreenX < canvas.width) {
+                // İskele kazıkları (dikey çubuklar) - ilk üç bacak çizilmiyor
+                ctx.fillStyle = '#654321';
+                const poleCount = 6;
+                for (let i = 0; i < poleCount; i++) {
+                    if (i < 3) continue; // İlk üç bacak çizilmiyor
+                    const poleX = dockScreenX + (i * islandDockWidth / (poleCount - 1));
+                    const poleScreenY = dockScreenY + dockPlatformHeight;
+                    ctx.fillRect(poleX - 4, poleScreenY, 8, dockPoleHeight);
+                }
+                
+                // İskele platformu (ahşap)
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(dockScreenX, dockScreenY, islandDockWidth, dockPlatformHeight);
+                
+                // İskele platformu üst çizgisi
+                ctx.strokeStyle = '#654321';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(dockScreenX, dockScreenY, islandDockWidth, dockPlatformHeight);
+                
+                // Tekne (iskeleye bağlı)
+                const dockEndX = dockScreenX + islandDockWidth;
+                const dockEndY = dockScreenY + dockPlatformHeight / 2;
+                const boatDistance = 90;
+                const boatX = dockEndX + boatDistance - 63;
+                const boatY = dockEndY - 30;
+                const boatWidth = 120;
+                const boatHeight = 50;
+                
+                // Tekne gövdesi (yarım oval)
+                ctx.fillStyle = '#654321';
+                ctx.beginPath();
+                ctx.ellipse(boatX + boatWidth / 2, boatY + boatHeight, boatWidth / 2, boatHeight / 2, 0, 0, Math.PI, false);
+                ctx.fill();
+                
+                // Tekne gövdesi üst kenarlığı
+                ctx.strokeStyle = '#4A3728';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.ellipse(boatX + boatWidth / 2, boatY + boatHeight, boatWidth / 2, boatHeight / 2, 0, 0, Math.PI, false);
+                ctx.stroke();
+                
+                // Tekne iç kısmı
+                ctx.fillStyle = '#8B4513';
+                ctx.beginPath();
+                ctx.ellipse(boatX + boatWidth / 2, boatY + boatHeight - 2, boatWidth / 2 - 3, boatHeight / 2 - 3, 0, 0, Math.PI, false);
+                ctx.fill();
+                
+                // Tekne iç kenarlığı
+                ctx.strokeStyle = '#6B5439';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(boatX + boatWidth / 2, boatY + boatHeight - 2, boatWidth / 2 - 3, boatHeight / 2 - 3, 0, 0, Math.PI, false);
+                ctx.stroke();
+                
+                // İskele üzerinde halat bağlantı noktası
+                const ropeAnchorX = dockEndX - 5;
+                const ropeAnchorY = dockEndY;
+                
+                ctx.fillStyle = '#4A3728';
+                ctx.beginPath();
+                ctx.arc(ropeAnchorX, ropeAnchorY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#2F1F14';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                ctx.fillStyle = '#6B5439';
+                ctx.beginPath();
+                ctx.arc(ropeAnchorX, ropeAnchorY, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Tekne üzerinde halat bağlantı noktası
+                const boatCenterX = boatX + boatWidth / 2;
+                const boatCenterY = boatY + boatHeight;
+                const boatRopeX = boatX + 15;
+                const boatRopeY = boatCenterY - 2;
+                
+                ctx.fillStyle = '#4A3728';
+                ctx.beginPath();
+                ctx.arc(boatRopeX, boatRopeY, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#2F1F14';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                ctx.fillStyle = '#6B5439';
+                ctx.beginPath();
+                ctx.arc(boatRopeX, boatRopeY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Halat
+                ctx.strokeStyle = '#8B7355';
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(ropeAnchorX, ropeAnchorY);
+                ctx.lineTo(boatRopeX, boatRopeY);
+                ctx.stroke();
+                
+                // Halat gölgesi
+                ctx.strokeStyle = '#6B5B45';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(ropeAnchorX + 1, ropeAnchorY + 1);
+                ctx.lineTo(boatRopeX + 1, boatRopeY + 1);
+                ctx.stroke();
+                
+                // Halat highlight
+                ctx.strokeStyle = '#AB9B85';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(ropeAnchorX - 1, ropeAnchorY - 1);
+                ctx.lineTo(boatRopeX - 1, boatRopeY - 1);
+                ctx.stroke();
+                
+                // Tekne gölgesi
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.beginPath();
+                ctx.ellipse(boatX + boatWidth / 2, boatY + boatHeight + 5, boatWidth / 2, boatHeight / 2 - 5, 0, 0, Math.PI, false);
+                ctx.fill();
+                
+                // Tekne bayrağı (tekneye bitişik)
+                ctx.fillStyle = '#FF0000';
+                ctx.fillRect(boatX + boatWidth - 10, boatY - 15, 8, 15);
+                
+                // Bayrak detayı
+                ctx.strokeStyle = '#8B0000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(boatX + boatWidth - 10, boatY - 15, 8, 15);
+            }
+            
+            // Karakterleri çiz (ada üzerinde)
+            drawHedgehog();
+            drawPlayer();
+        }
+
+            // Tekne rotası hesaplama (kıvrımlı bezier curve)
         function getBoatPosition(progress) {
             // Ada pozisyonu (sağ üst köşe - drawIsland ile aynı)
-            const islandX = canvas.width - 250;
-            const islandY = 200;
+            const islandX = canvas.width - 210; // drawIsland ile eşleştir
+            const islandY = 150; // drawIsland ile eşleştir
             
             // İskele başlangıç pozisyonu (sol alt - iskelenin sonu)
             const dockX = 2;
@@ -1793,13 +3059,21 @@
 
         // Tekne güncelleme (rotada hareket)
         function updateBoat() {
-            if (!boat.isMoving || game.sceneState !== 'island') return;
+            // Sadece island sahnesinde çalış
+            if (game.sceneState !== 'island') return;
+            
+            if (!boat.isMoving) return;
             
             boat.routeProgress += boat.speed;
             
             if (boat.routeProgress >= 1) {
                 boat.routeProgress = 1;
                 boat.isMoving = false; // Rotanın sonuna ulaştı
+                
+                // Tekne adaya ulaştı, yeni sahneye geç
+                game.sceneState = 'onIsland';
+                initializeOnIslandScene();
+                return; // Geçiş yapıldı, daha fazla güncelleme yapma
             }
             
             // Teknenin pozisyonunu hesapla
@@ -1862,9 +3136,9 @@
 
         // Draw road (yol) - Kaldırım zemin
         function drawRoad() {
-            // Zemin seviyesi (platform y: 550 - karakterler bu seviyede duruyor)
-            const groundLevel = 550;
-            const roadHeight = 60;
+            // Zemin seviyesi
+            const groundLevel = GROUND_LEVEL;
+            const roadHeight = 70;
             // Kaldırımın üst yüzeyi groundLevel'da, aşağıya doğru çiziliyor
             const screenY = groundLevel - camera.y;
             
@@ -1883,8 +3157,8 @@
 
         // Draw buildings (binalar) - Yeni sprite yapısı
         function drawBuildings() {
-            // Zemin seviyesi (platform y: 550)
-            const groundLevel = 550;
+            // Zemin seviyesi
+            const groundLevel = GROUND_LEVEL;
             
             // Bina kategorileri
             const smallBuildings = [
@@ -2131,10 +3405,19 @@
             const textGap = text2Lines.length > 0 ? 15 : 0;
             const totalTextHeight = textHeight + text2Height + textGap;
             
-            // Cevaplar için alan
-            const answerHeight = 40;
-            const answerSpacing = 50;
-            const answerAreaHeight = dialog.answers.length * answerSpacing;
+            // Cevaplar için alan (dinamik hesaplama)
+            const drawAnswerHeight = 40;
+            const drawAnswerBoxWidth = dialogWidth - 100;
+            const drawAnswerTextWidth = drawAnswerBoxWidth - 40;
+            ctx.font = '16px Arial';
+            let drawTotalAnswerHeight = 0;
+            dialog.answers.forEach((answer, index) => {
+                const answerText = answer;
+                const answerLines = wrapText(answerText, drawAnswerTextWidth, '16px Arial');
+                const answerBoxHeight = Math.max(drawAnswerHeight, answerLines.length * 22 + 16);
+                drawTotalAnswerHeight += answerBoxHeight + 10; // 10px boşluk
+            });
+            const answerAreaHeight = drawTotalAnswerHeight;
             
             // Dialog box yüksekliği dinamik olarak ayarla
             const dialogHeight = Math.max(300, totalTextHeight + answerAreaHeight + 100);
@@ -2174,21 +3457,36 @@
 
             // Answers
             ctx.font = '16px Arial';
+            const renderAnswerBoxWidth = dialogWidth - 100;
+            const renderAnswerTextWidth = renderAnswerBoxWidth - 40; // Padding için
+            let renderAnswerOffsetY = 0;
+            
             dialog.answers.forEach((answer, index) => {
-                const answerY = currentY + index * answerSpacing;
-
+                const answerY = currentY + renderAnswerOffsetY;
+                
+                // Cevap metnini sarmala
+                const answerText = answer;
+                const answerLines = wrapText(answerText, renderAnswerTextWidth, '16px Arial');
+                const renderAnswerHeight = 40;
+                const answerBoxHeight = Math.max(renderAnswerHeight, answerLines.length * 22 + 16); // Dinamik yükseklik
+                
                 // Answer box hover efekti için (basit)
                 ctx.fillStyle = '#f0f0f0';
-                ctx.fillRect(dialogX + 50, answerY, dialogWidth - 100, answerHeight);
+                ctx.fillRect(dialogX + 50, answerY, renderAnswerBoxWidth, answerBoxHeight);
 
                 // Answer border
                 ctx.strokeStyle = '#333';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(dialogX + 50, answerY, dialogWidth - 100, answerHeight);
+                ctx.strokeRect(dialogX + 50, answerY, renderAnswerBoxWidth, answerBoxHeight);
 
-                // Answer text
+                // Answer text (çok satırlı)
                 ctx.fillStyle = 'black';
-                ctx.fillText(`${index + 1}. ${answer}`, dialogX + 70, answerY + 25);
+                answerLines.forEach((line, lineIndex) => {
+                    ctx.fillText(line, dialogX + 70, answerY + 20 + (lineIndex * 22));
+                });
+                
+                // Sonraki cevap için Y pozisyonunu güncelle
+                renderAnswerOffsetY += answerBoxHeight + 10; // 10px boşluk
             });
 
             ctx.textAlign = 'left';
@@ -2492,9 +3790,11 @@
 
                 // Update
                 // Açılış sahnesinde oyuncu hareket edemez
-                if (!dialog.isOpen && game.sceneState === 'gameplay') {
+                if (!dialog.isOpen && (game.sceneState === 'gameplay' || game.sceneState === 'onIsland')) {
                     updatePlayer();
-                    checkInteraction();  // Caffè Nero kontrolü (otomatik açılması için)
+                    if (game.sceneState === 'gameplay') {
+                        checkInteraction();  // Caffè Nero kontrolü (otomatik açılması için)
+                    }
                     
                     // Rakun-İskele collision kontrolü (debug)
                     if (dockX !== null) {
@@ -2545,10 +3845,13 @@
 
                 ctx.restore();
                 } else if (game.sceneState === 'island') {
-                    // Ada sahnesi: Deniz ve ada
+                    // Ada sahnesi: Deniz ve ada (tekne hareket ederken)
                     drawIsland();
                     // Karakterler ada sahnesinde görünmeyebilir veya tekne üzerinde olabilir
                     // Şimdilik sadece ada çiziyoruz
+                } else if (game.sceneState === 'onIsland') {
+                    // Ada üzerinde oyun sahnesi (karakterler adaya indikten sonra)
+                    drawOnIsland();
                 } else {
                     // Gameplay: Normal oyun ekranı
                     // Arka plan (gökyüzü gradient - daha zengin)
@@ -2576,8 +3879,10 @@
         }
 
         // Start game
-        // TEST: Tekneyi başlat (ada sahnesinden başladığı için)
-        if (game.sceneState === 'island') {
+        // TEST: Direkt onIsland sahnesinden başla
+        if (game.sceneState === 'onIsland') {
+            initializeOnIslandScene();
+        } else if (game.sceneState === 'island') {
             initializeBoat();
         }
         gameLoop();
