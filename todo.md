@@ -440,3 +440,53 @@
 - `updateHedgehog()` fonksiyonunda Datça sahnesi için arabaya yürüme kontrolü eklendi
 - Arabaya yürüme durumunda karakter sınırları kontrolü atlanıyor (sınırsız hareket)
 - Normal hareket kontrolü arabaya yürüme sırasında devre dışı bırakılıyor
+
+### 22. Datça-Istanbul Ters Yolculuk Sahnesi
+
+#### Ters Rota Sistemi
+- Yeni sahne durumu: `datcaIstanbul` (Datça'dan Istanbul'a dönüş yolculuğu)
+- Datça sahnesinde arabaya binip ekrandan çıktığında otomatik geçiş
+- Ters rota hesaplama: `getRoadTripPositionReverse()` fonksiyonu ile tam ters rota
+- 3 satırlı zigzag rota (ters yön):
+  - **Satır 1**: Sağ → Sol (tamamen) [İstanbul->Datça'nın Satır 3'ünün tersi]
+  - **Geçiş 1**: Sol alt → Sol orta (smooth curve yukarı)
+  - **Satır 2**: Sol → Sağ (tamamen) [İstanbul->Datça'nın Satır 2'nin tersi]
+  - **Geçiş 2**: Sağ orta → Sağ üst (smooth curve yukarı)
+  - **Satır 3**: Sağ → Sol (tamamen, Istanbul'a) [İstanbul->Datça'nın Satır 1'in tersi]
+- Bezier curve kontrol noktaları simetrik olarak hesaplanıyor
+
+#### Yol Çizim Sistemi
+- `getRoadPathSegmentsReverse()` fonksiyonu ile ters yön yol segmentleri
+- Yol çizimi İstanbul->Datça ile aynı mantıkta (kamera offset ile)
+- Tabelalar: Datça (sağ alt, başlangıç), Istanbul (sol üst, hedef)
+
+#### Araba Yol Takip Düzeltmesi
+- Araba yolun ortasında gitme sorunu çözüldü
+- Yol segmentleri kamera offset'i ile ekran koordinatlarına dönüştürülüyor (`screenSegments`)
+- Araba çizimi kamera offset'i ile yapılıyor
+- Her iki sahne için (İstanbul->Datça ve Datça->Istanbul) yol takibi düzeltildi
+
+#### Kamera Sistemi
+- İstanbul-Datça sahnesinde kamera takibi kaldırıldı (sabit kamera)
+- Datça-Istanbul sahnesinde kamera takibi kaldırıldı (sabit kamera)
+- Her iki sahne için kamera başlangıç pozisyonunda kalıyor
+
+### 23. onIsland Sahnesi İskele Yönlendirme
+
+#### Otel Diyalog Sonrası Hareket
+- Otel diyalog penceresi kapandıktan sonra kirpinin iskeleye otomatik gitmesi eklendi
+- `handleAnswer()` fonksiyonunda otel diyaloğu bittiğinde kirpi hedefi iskeleye ayarlanıyor
+- `updateHedgehog()` fonksiyonunda `onIsland && innEntered` durumunda iskeleye hareket kontrolü
+- İskele pozisyonu dinamik olarak hesaplanıyor (son evden +100px)
+- Ekrandan çıkmama kontrolü ve bekleme mekanizması çalışıyor
+
+#### Kod İyileştirmeleri
+- Otel diyaloğu sonrası kirpi hareket mantığı `updateHedgehog()` içinde düzenlendi
+- İskele pozisyon hesaplama kodu hem `handleAnswer()` hem `updateHedgehog()` içinde tutarlı
+
+### 24. Ana Menü Başlatma Düzeltmesi
+
+#### Test Modu Kaldırıldı
+- Oyun direkt Datça sahnesinden başlatan test kodu kaldırıldı
+- Oyun artık normal akışla ana menüden (`intro` state) başlıyor
+- `game.state = 'intro'` ve `game.sceneState = 'opening'` ile başlangıç

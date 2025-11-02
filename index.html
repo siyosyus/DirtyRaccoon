@@ -333,7 +333,7 @@
             state: 'intro',  // 'intro', 'verification', 'playing', 'finished'
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
-            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'istanbulDatca', 'datca'
+            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'istanbulDatca', 'datca', 'datcaIstanbul'
             openingDialogShown: false,  // Açılış dialogu gösterildi mi?
             caffeNeroDialogShown: false,  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
             dockDialogShown: false,  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
@@ -881,7 +881,7 @@
         function openDatcaLastHouseDialog() {
             dialog.isOpen = true;
             dialog.isHedgehogDialog = false;
-            dialog.text = 'Burada yazılacakö söylenecek çok fazla şey var aslında. Seni ne kadar çok sevdiğimi ya da seni tanıdığım için ne kadar şanslı olduğumu uzun uzun anlatabilirim tam bu ekranda. Ama kimseyi gözyaşlarına boğmak istemiyorum. O yüzden oyunumuza devam edelim ve bu anın en önemli sorusu sana bır kere daha gelsin boncuğum.';
+            dialog.text = 'Burada yazılacak, söylenecek çok fazla şey var aslında. Seni ne kadar çok sevdiğimi ya da seni tanıdığım için ne kadar şanslı olduğumu uzun uzun anlatabilirim tam bu ekranda. Ama kimseyi gözyaşlarına boğmak istemiyorum. O yüzden oyunumuza devam edelim ve bu anın en önemli sorusu sana bir kere daha gelsin boncuğum.';
             dialog.text2 = 'Benimle evlenir misin?';
             dialog.answers = ['Eveeeeeeeet!!!', 'O hatayı bir kere daha yapmam ben..'];
             dialog.currentObject = 'datcaLastHouse';
@@ -1055,7 +1055,42 @@
                     hedgehog.showSpeechBubble = true;
                     hedgehog.speechText = 'Bu kadar saçma bir şey ancak bizim başımıza gelebilirdi 😂';
                     
-                    // Burada yeni sahneye geçiş yapılabilir veya oyun bitirilebilir
+                    // Kirpinin iskeleye doğru hareket etmesini sağla
+                    const islandXWorld = canvas.width / 2;
+                    const houseStartX = islandXWorld - 400;
+                    const houseSpacing = 40;
+                    const houseScale = 1.35;
+                    
+                    // Tüm evlerin toplam genişliğini hesapla
+                    const housesPattern = [
+                        { sprite: sprites.island.home1, name: 'home1' },
+                        { sprite: sprites.island.home2, name: 'home2' },
+                        { sprite: sprites.island.home1, name: 'home1' },
+                        { sprite: sprites.island.home2, name: 'home2' },
+                        { sprite: sprites.island.hotel, name: 'hotel' },
+                        { sprite: sprites.island.home1, name: 'home1' }
+                    ];
+                    
+                    let totalHousesWidth = 0;
+                    for (let i = 0; i < housesPattern.length; i++) {
+                        const house = housesPattern[i];
+                        if (house.sprite && house.sprite.complete) {
+                            const houseWidth = house.sprite.width * houseScale;
+                            totalHousesWidth += houseWidth;
+                            if (i < housesPattern.length - 1) {
+                                totalHousesWidth += houseSpacing;
+                            }
+                        }
+                    }
+                    
+                    const lastHouseRight = houseStartX + totalHousesWidth;
+                    const islandDockX = lastHouseRight + 100; // İskele başlangıcı
+                    
+                    // Kirpi'nin iskeleye doğru hareket etmesini sağla
+                    hedgehog.targetX = islandDockX - hedgehog.width - 10; // İskele önünde bekle
+                    hedgehog.isMoving = true;
+                    hedgehog.waitingForPlayer = false;
+                    
                     return;
                 }
                 // Adım güncellendi, diyalog açık kalacak ve yeni soru gösterilecek
@@ -1704,6 +1739,14 @@
                 if (maxCameraX > 0 && camera.x > maxCameraX) {
                     camera.x = maxCameraX;
                 }
+            } else if (game.sceneState === 'istanbulDatca') {
+                // Istanbul-Datça sahnesi için kamera sabit (takip yok)
+                // Kamera başlangıç pozisyonunda kalır
+                if (camera.x < 0) camera.x = 0;
+            } else if (game.sceneState === 'datcaIstanbul') {
+                // Datça-Istanbul sahnesi için kamera sabit (takip yok)
+                // Kamera başlangıç pozisyonunda kalır
+                if (camera.x < 0) camera.x = 0;
             } else {
                 // Normal gameplay için kamera
             camera.x = player.x - canvas.width / 2 + player.width / 2;
@@ -1975,15 +2018,84 @@
                 return;
             }
             
-            // OnIsland sahnesi: Otel etkileşimi tamamlandıktan sonra diyalog baloncuğunu koru
+            // OnIsland sahnesi: Otel etkileşimi tamamlandıktan sonra iskeleye doğru hareket et
             if (game.sceneState === 'onIsland' && game.innEntered) {
-                // Diyalog baloncuğu zaten ayarlanmış (handleAnswer'da), burada sadece koru
-                // Eğer baloncuk gösterilmiyorsa ve metin eski metinse, yeni metni ayarla
+                // İskele pozisyonunu hesapla
+                const islandXWorld = canvas.width / 2;
+                const houseStartX = islandXWorld - 400;
+                const houseSpacing = 40;
+                const houseScale = 1.35;
+                
+                // Tüm evlerin toplam genişliğini hesapla
+                const housesPattern = [
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.home1, name: 'home1' },
+                    { sprite: sprites.island.home2, name: 'home2' },
+                    { sprite: sprites.island.hotel, name: 'hotel' },
+                    { sprite: sprites.island.home1, name: 'home1' }
+                ];
+                
+                let totalHousesWidth = 0;
+                for (let i = 0; i < housesPattern.length; i++) {
+                    const house = housesPattern[i];
+                    if (house.sprite && house.sprite.complete) {
+                        const houseWidth = house.sprite.width * houseScale;
+                        totalHousesWidth += houseWidth;
+                        if (i < housesPattern.length - 1) {
+                            totalHousesWidth += houseSpacing;
+                        }
+                    }
+                }
+                
+                const lastHouseRight = houseStartX + totalHousesWidth;
+                const islandDockX = lastHouseRight + 100; // İskele başlangıcı
+                
+                // Kirpi'nin hedefi iskeleye doğru
+                if (hedgehog.targetX === null) {
+                    hedgehog.targetX = islandDockX - hedgehog.width - 10;
+                    hedgehog.isMoving = true;
+                }
+                
+                // Diyalog baloncuğunu koru
                 if (!hedgehog.showSpeechBubble || hedgehog.speechText === 'Birlikte kaldığımız ilk otele gidiyoruz. Heyecanlı mısın?') {
                     hedgehog.showSpeechBubble = true;
                     hedgehog.speechText = 'Bu kadar saçma bir şey ancak bizim başımıza gelebilirdi 😂';
                 }
-                // Hareket etmesini engelle veya istediğin davranışı ekle
+                
+                // İskeleye doğru hareket et
+                if (hedgehog.isMoving && hedgehog.targetX !== null) {
+                    const distance = Math.abs(hedgehog.x - hedgehog.targetX);
+                    
+                    // Ekran kontrolü - kirpi ekrandan çıkmamalı
+                    const hedgehogScreenX = hedgehog.x - camera.x;
+                    const nextX = hedgehog.x < hedgehog.targetX ? hedgehog.x + hedgehog.speed : hedgehog.x - hedgehog.speed;
+                    const nextScreenX = nextX - camera.x;
+                    const willBeVisible = nextScreenX >= 0 && nextScreenX <= canvas.width - hedgehog.width;
+                    
+                    // Eğer kirpi ekrandan çıkacaksa, dur ve ekranda görünür bir noktaya gel
+                    if (!willBeVisible || nextScreenX + hedgehog.width > canvas.width * 0.7) {
+                        hedgehog.isMoving = false;
+                        hedgehog.waitingForPlayer = true;
+                        const targetScreenX = canvas.width * 0.7;
+                        hedgehog.screenTargetX = camera.x + targetScreenX;
+                        return;
+                    }
+                    
+                    // Hedefe doğru hareket et
+                    if (distance > 10) {
+                        if (hedgehog.x < hedgehog.targetX) {
+                            hedgehog.x += hedgehog.speed;
+                        } else {
+                            hedgehog.x -= hedgehog.speed;
+                        }
+                    } else {
+                        // İskeleye ulaşıldı
+                        hedgehog.isMoving = false;
+                        hedgehog.targetX = null;
+                    }
+                }
+                
                 return;
             }
             
@@ -3511,7 +3623,13 @@
             const roadSegments = getRoadPathSegments();
             const roadWidth = 60; // Yol genişliği
             
-            if (roadSegments.length > 1) {
+            // Kamera offset'i ile segmentleri ekran koordinatlarına dönüştür
+            const screenSegments = roadSegments.map(seg => ({
+                x: seg.x - camera.x,
+                y: seg.y - camera.y
+            }));
+            
+            if (screenSegments.length > 1) {
                 // Yol sprite'ı kullan (ground_pref.png)
                 const roadSprite = sprites.island.groundPref;
                 const useSprite = roadSprite && roadSprite.complete && roadSprite.width > 0;
@@ -3561,8 +3679,8 @@
                                 if (length > 0) {
                                     perpX = -dy / length;
                                     perpY = dx / length;
-                                    const x = roadSegments[i].x + perpX * (roadWidth / 2);
-                                    const y = roadSegments[i].y + perpY * (roadWidth / 2);
+                                    const x = screenSegments[i].x + perpX * (roadWidth / 2);
+                                    const y = screenSegments[i].y + perpY * (roadWidth / 2);
                                     
                                     if (i === 0) {
                                         ctx.moveTo(x, y);
@@ -3619,8 +3737,8 @@
                                 if (length > 0) {
                                     perpX = dy / length;
                                     perpY = -dx / length;
-                                    const x = roadSegments[i].x + perpX * (roadWidth / 2);
-                                    const y = roadSegments[i].y + perpY * (roadWidth / 2);
+                                    const x = screenSegments[i].x + perpX * (roadWidth / 2);
+                                    const y = screenSegments[i].y + perpY * (roadWidth / 2);
                                     ctx.lineTo(x, y);
                                 }
                             }
@@ -3662,9 +3780,9 @@
                     ctx.strokeStyle = '#FFFF00';
                     ctx.lineWidth = 3;
                     ctx.beginPath();
-                    ctx.moveTo(roadSegments[0].x, roadSegments[0].y);
-                    for (let i = 1; i < roadSegments.length; i++) {
-                        ctx.lineTo(roadSegments[i].x, roadSegments[i].y);
+                    ctx.moveTo(screenSegments[0].x, screenSegments[0].y);
+                    for (let i = 1; i < screenSegments.length; i++) {
+                        ctx.lineTo(screenSegments[i].x, screenSegments[i].y);
                     }
                     ctx.stroke();
                     ctx.setLineDash([]);
@@ -3676,9 +3794,9 @@
                     ctx.lineCap = 'round';
                     ctx.lineJoin = 'round';
                     ctx.beginPath();
-                    ctx.moveTo(roadSegments[0].x, roadSegments[0].y);
-                    for (let i = 1; i < roadSegments.length; i++) {
-                        ctx.lineTo(roadSegments[i].x, roadSegments[i].y);
+                    ctx.moveTo(screenSegments[0].x, screenSegments[0].y);
+                    for (let i = 1; i < screenSegments.length; i++) {
+                        ctx.lineTo(screenSegments[i].x, screenSegments[i].y);
                     }
                     ctx.stroke();
                     
@@ -3688,29 +3806,29 @@
                     
                     // Sol kenar çizgisi
                     ctx.beginPath();
-                    for (let i = 0; i < roadSegments.length; i++) {
+                    for (let i = 0; i < screenSegments.length; i++) {
                         if (i === 0) {
-                            const dx = roadSegments[1].x - roadSegments[0].x;
-                            const dy = roadSegments[1].y - roadSegments[0].y;
+                            const dx = screenSegments[1].x - screenSegments[0].x;
+                            const dy = screenSegments[1].y - screenSegments[0].y;
                             const length = Math.sqrt(dx * dx + dy * dy);
                             if (length > 0) {
                                 const perpX = -dy / length;
                                 const perpY = dx / length;
                                 ctx.moveTo(
-                                    roadSegments[0].x + perpX * (roadWidth / 2),
-                                    roadSegments[0].y + perpY * (roadWidth / 2)
+                                    screenSegments[0].x + perpX * (roadWidth / 2),
+                                    screenSegments[0].y + perpY * (roadWidth / 2)
                                 );
                             }
                         } else {
-                            const dx = roadSegments[i].x - roadSegments[i-1].x;
-                            const dy = roadSegments[i].y - roadSegments[i-1].y;
+                            const dx = screenSegments[i].x - screenSegments[i-1].x;
+                            const dy = screenSegments[i].y - screenSegments[i-1].y;
                             const length = Math.sqrt(dx * dx + dy * dy);
                             if (length > 0) {
                                 const perpX = -dy / length;
                                 const perpY = dx / length;
                                 ctx.lineTo(
-                                    roadSegments[i].x + perpX * (roadWidth / 2),
-                                    roadSegments[i].y + perpY * (roadWidth / 2)
+                                    screenSegments[i].x + perpX * (roadWidth / 2),
+                                    screenSegments[i].y + perpY * (roadWidth / 2)
                                 );
                             }
                         }
@@ -3719,29 +3837,29 @@
                     
                     // Sağ kenar çizgisi
                     ctx.beginPath();
-                    for (let i = 0; i < roadSegments.length; i++) {
+                    for (let i = 0; i < screenSegments.length; i++) {
                         if (i === 0) {
-                            const dx = roadSegments[1].x - roadSegments[0].x;
-                            const dy = roadSegments[1].y - roadSegments[0].y;
+                            const dx = screenSegments[1].x - screenSegments[0].x;
+                            const dy = screenSegments[1].y - screenSegments[0].y;
                             const length = Math.sqrt(dx * dx + dy * dy);
                             if (length > 0) {
                                 const perpX = dy / length;
                                 const perpY = -dx / length;
                                 ctx.moveTo(
-                                    roadSegments[0].x + perpX * (roadWidth / 2),
-                                    roadSegments[0].y + perpY * (roadWidth / 2)
+                                    screenSegments[0].x + perpX * (roadWidth / 2),
+                                    screenSegments[0].y + perpY * (roadWidth / 2)
                                 );
                             }
                         } else {
-                            const dx = roadSegments[i].x - roadSegments[i-1].x;
-                            const dy = roadSegments[i].y - roadSegments[i-1].y;
+                            const dx = screenSegments[i].x - screenSegments[i-1].x;
+                            const dy = screenSegments[i].y - screenSegments[i-1].y;
                             const length = Math.sqrt(dx * dx + dy * dy);
                             if (length > 0) {
                                 const perpX = dy / length;
                                 const perpY = -dx / length;
                                 ctx.lineTo(
-                                    roadSegments[i].x + perpX * (roadWidth / 2),
-                                    roadSegments[i].y + perpY * (roadWidth / 2)
+                                    screenSegments[i].x + perpX * (roadWidth / 2),
+                                    screenSegments[i].y + perpY * (roadWidth / 2)
                                 );
                             }
                         }
@@ -3753,9 +3871,9 @@
                     ctx.strokeStyle = '#FFFF00';
                     ctx.lineWidth = 3;
                     ctx.beginPath();
-                    ctx.moveTo(roadSegments[0].x, roadSegments[0].y);
-                    for (let i = 1; i < roadSegments.length; i++) {
-                        ctx.lineTo(roadSegments[i].x, roadSegments[i].y);
+                    ctx.moveTo(screenSegments[0].x, screenSegments[0].y);
+                    for (let i = 1; i < screenSegments.length; i++) {
+                        ctx.lineTo(screenSegments[i].x, screenSegments[i].y);
                     }
                     ctx.stroke();
                     ctx.setLineDash([]); // Kesikli çizgiyi sıfırla
@@ -3764,9 +3882,13 @@
             
             // Araba çiz (returningHome arabası ile aynı stil)
             // NOT: roadTripCar.x ve roadTripCar.y zaten yolun merkez çizgisini temsil eder
-            ctx.save();
-            ctx.translate(roadTripCar.x, roadTripCar.y);
-            ctx.rotate(roadTripCar.angle);
+            if (roadTripCar.x !== null && roadTripCar.y !== null) {
+                const carScreenX = roadTripCar.x - camera.x;
+                const carScreenY = roadTripCar.y - camera.y;
+                
+                ctx.save();
+                ctx.translate(carScreenX, carScreenY);
+                ctx.rotate(roadTripCar.angle);
             
             // Modern beyaz araba (returningHome arabası ile aynı kod)
             ctx.imageSmoothingEnabled = true;
@@ -3818,7 +3940,8 @@
             ctx.arc(carWidth/2 - 5, carHeight/2 - 15, 5, 0, Math.PI * 2);
             ctx.fill();
             
-            ctx.restore();
+                ctx.restore();
+            }
             
             // Tabelaları EN SON çiz (yolun ve arabanın üstünde görünmeleri için)
             // Önce canvas state'ini temizle (arabanın transform'larından etkilenmemesi için)
@@ -3878,6 +4001,416 @@
             ctx.restore(); // Canvas state'i geri yükle (transform sıfırlama işlemini kapat)
         }
         
+        // Draw Datça-Istanbul yolculuk sahnesi
+        function drawDatcaIstanbul() {
+            // Gökyüzü gradient (arka plan)
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');      // Gökyüzü mavisi (üst)
+            gradient.addColorStop(0.7, '#B0E0E6');   // Açık mavi
+            gradient.addColorStop(1, '#E0F6FF');      // Çok açık mavi (alt)
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // NOT: Tabelaları EN SON çizeceğiz (yolun ve arabanın üstünde görünmeleri için)
+            
+            // Yol çizimi (ters yön - Datça'dan Istanbul'a)
+            const roadSegments = getRoadPathSegmentsReverse();
+            const roadWidth = 60; // Yol genişliği
+            
+            // Kamera offset'i ile segmentleri ekran koordinatlarına dönüştür
+            const screenSegments = roadSegments.map(seg => ({
+                x: seg.x - camera.x,
+                y: seg.y - camera.y
+            }));
+            
+            if (screenSegments.length > 1) {
+                // Yol sprite'ı kullan (ground_pref.png)
+                const roadSprite = sprites.island.groundPref;
+                const useSprite = roadSprite && roadSprite.complete && roadSprite.width > 0;
+                
+                if (useSprite) {
+                    // Yol sprite'ını kullanarak polygon yol çiz (her segment için)
+                    const tileSize = 32; // Tile boyutu
+                    
+                    // Yol polygon'unu oluştur (kenarlar + yüzey)
+                    ctx.beginPath();
+                    
+                    // Üst kenar (sol kenar) - Geçiş bölümlerinde daha fazla nokta
+                    for (let i = 0; i < roadSegments.length; i++) {
+                        let perpX, perpY;
+                        
+                        // Segmentler arası mesafe kontrolü - boşluk varsa interpolasyon yap
+                        if (i < roadSegments.length - 1) {
+                            const dx = roadSegments[i + 1].x - roadSegments[i].x;
+                            const dy = roadSegments[i + 1].y - roadSegments[i].y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            // Eğer segmentler arası çok büyük boşluk varsa, ara noktalar ekle
+                            if (distance > roadWidth * 0.5) {
+                                const midPoints = Math.ceil(distance / (roadWidth * 0.3));
+                                for (let m = 0; m < midPoints; m++) {
+                                    const t = m / midPoints;
+                                    const midX = roadSegments[i].x + dx * t;
+                                    const midY = roadSegments[i].y + dy * t;
+                                    
+                                    const perpLength = Math.sqrt(dx * dx + dy * dy);
+                                    if (perpLength > 0) {
+                                        const perpX = -dy / perpLength;
+                                        const perpY = dx / perpLength;
+                                        const x = midX + perpX * (roadWidth / 2);
+                                        const y = midY + perpY * (roadWidth / 2);
+                                        
+                                        if (i === 0 && m === 0) {
+                                            ctx.moveTo(x, y);
+                                        } else {
+                                            ctx.lineTo(x, y);
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Normal segment işleme
+                                const length = Math.sqrt(dx * dx + dy * dy);
+                                if (length > 0) {
+                                    perpX = -dy / length;
+                                    perpY = dx / length;
+                                    const x = screenSegments[i].x + perpX * (roadWidth / 2);
+                                    const y = screenSegments[i].y + perpY * (roadWidth / 2);
+                                    
+                                    if (i === 0) {
+                                        ctx.moveTo(x, y);
+                                    } else {
+                                        ctx.lineTo(x, y);
+                                    }
+                                }
+                            }
+                        } else {
+                            // Son segment
+                            const dx = roadSegments[i].x - roadSegments[i - 1].x;
+                            const dy = roadSegments[i].y - roadSegments[i - 1].y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                perpX = -dy / length;
+                                perpY = dx / length;
+                                const x = roadSegments[i].x + perpX * (roadWidth / 2);
+                                const y = roadSegments[i].y + perpY * (roadWidth / 2);
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                    }
+                    
+                    // Alt kenar (sağ kenar - ters yönde) - Geçiş bölümlerinde daha fazla nokta
+                    for (let i = roadSegments.length - 1; i >= 0; i--) {
+                        let perpX, perpY;
+                        
+                        // Segmentler arası mesafe kontrolü - boşluk varsa interpolasyon yap
+                        if (i > 0) {
+                            const dx = roadSegments[i].x - roadSegments[i - 1].x;
+                            const dy = roadSegments[i].y - roadSegments[i - 1].y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            // Eğer segmentler arası çok büyük boşluk varsa, ara noktalar ekle
+                            if (distance > roadWidth * 0.5) {
+                                const midPoints = Math.ceil(distance / (roadWidth * 0.3));
+                                for (let m = midPoints - 1; m >= 0; m--) {
+                                    const t = m / midPoints;
+                                    const midX = roadSegments[i - 1].x + dx * t;
+                                    const midY = roadSegments[i - 1].y + dy * t;
+                                    
+                                    const perpLength = Math.sqrt(dx * dx + dy * dy);
+                                    if (perpLength > 0) {
+                                        const perpX = dy / perpLength;
+                                        const perpY = -dx / perpLength;
+                                        const x = midX + perpX * (roadWidth / 2);
+                                        const y = midY + perpY * (roadWidth / 2);
+                                        ctx.lineTo(x, y);
+                                    }
+                                }
+                            } else {
+                                // Normal segment işleme
+                                const length = Math.sqrt(dx * dx + dy * dy);
+                                if (length > 0) {
+                                    perpX = dy / length;
+                                    perpY = -dx / length;
+                                    const x = screenSegments[i].x + perpX * (roadWidth / 2);
+                                    const y = screenSegments[i].y + perpY * (roadWidth / 2);
+                                    ctx.lineTo(x, y);
+                                }
+                            }
+                        } else {
+                            // İlk segment
+                            const dx = roadSegments[i + 1].x - roadSegments[i].x;
+                            const dy = roadSegments[i + 1].y - roadSegments[i].y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                perpX = dy / length;
+                                perpY = -dx / length;
+                                const x = roadSegments[i].x + perpX * (roadWidth / 2);
+                                const y = roadSegments[i].y + perpY * (roadWidth / 2);
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                    }
+                    
+                    ctx.closePath();
+                    
+                    // Pattern ile yol sprite'ını doldur
+                    const pattern = ctx.createPattern(roadSprite, 'repeat');
+                    if (pattern) {
+                        ctx.fillStyle = pattern;
+                        ctx.fill();
+                    } else {
+                        // Pattern oluşturulamazsa düz renk
+                        ctx.fillStyle = '#808080';
+                        ctx.fill();
+                    }
+                    
+                    // Yol kenarları (beyaz çizgiler)
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    
+                    // Yol orta çizgisi (kesikli sarı)
+                    ctx.setLineDash([15, 10]);
+                    ctx.strokeStyle = '#FFFF00';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(screenSegments[0].x, screenSegments[0].y);
+                    for (let i = 1; i < screenSegments.length; i++) {
+                        ctx.lineTo(screenSegments[i].x, screenSegments[i].y);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                } else {
+                    // Fallback: Yol sprite yoksa asfalt görünümlü yol çiz
+                    // Yol yüzeyi (asfalt)
+                    ctx.strokeStyle = '#505050'; // Koyu gri asfalt
+                    ctx.lineWidth = roadWidth;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(screenSegments[0].x, screenSegments[0].y);
+                    for (let i = 1; i < screenSegments.length; i++) {
+                        ctx.lineTo(screenSegments[i].x, screenSegments[i].y);
+                    }
+                    ctx.stroke();
+                    
+                    // Yol kenarları (beyaz çizgiler)
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 3;
+                    
+                    // Sol kenar çizgisi
+                    ctx.beginPath();
+                    for (let i = 0; i < roadSegments.length; i++) {
+                        if (i === 0) {
+                            const dx = roadSegments[1].x - roadSegments[0].x;
+                            const dy = roadSegments[1].y - roadSegments[0].y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                const perpX = -dy / length;
+                                const perpY = dx / length;
+                                ctx.moveTo(roadSegments[0].x + perpX * (roadWidth / 2), roadSegments[0].y + perpY * (roadWidth / 2));
+                            }
+                        }
+                        if (i < roadSegments.length - 1) {
+                            const dx = roadSegments[i + 1].x - roadSegments[i].x;
+                            const dy = roadSegments[i + 1].y - roadSegments[i].y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                const perpX = -dy / length;
+                                const perpY = dx / length;
+                                ctx.lineTo(roadSegments[i].x + perpX * (roadWidth / 2), roadSegments[i].y + perpY * (roadWidth / 2));
+                            }
+                        } else {
+                            const dx = roadSegments[i].x - roadSegments[i - 1].x;
+                            const dy = roadSegments[i].y - roadSegments[i - 1].y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                const perpX = -dy / length;
+                                const perpY = dx / length;
+                                ctx.lineTo(roadSegments[i].x + perpX * (roadWidth / 2), roadSegments[i].y + perpY * (roadWidth / 2));
+                            }
+                        }
+                    }
+                    ctx.stroke();
+                    
+                    // Sağ kenar çizgisi
+                    ctx.beginPath();
+                    for (let i = 0; i < roadSegments.length; i++) {
+                        if (i === 0) {
+                            const dx = roadSegments[1].x - roadSegments[0].x;
+                            const dy = roadSegments[1].y - roadSegments[0].y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                const perpX = dy / length;
+                                const perpY = -dx / length;
+                                ctx.moveTo(roadSegments[0].x + perpX * (roadWidth / 2), roadSegments[0].y + perpY * (roadWidth / 2));
+                            }
+                        }
+                        if (i < roadSegments.length - 1) {
+                            const dx = roadSegments[i + 1].x - roadSegments[i].x;
+                            const dy = roadSegments[i + 1].y - roadSegments[i].y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                const perpX = dy / length;
+                                const perpY = -dx / length;
+                                ctx.lineTo(roadSegments[i].x + perpX * (roadWidth / 2), roadSegments[i].y + perpY * (roadWidth / 2));
+                            }
+                        } else {
+                            const dx = roadSegments[i].x - roadSegments[i - 1].x;
+                            const dy = roadSegments[i].y - roadSegments[i - 1].y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                const perpX = dy / length;
+                                const perpY = -dx / length;
+                                ctx.lineTo(roadSegments[i].x + perpX * (roadWidth / 2), roadSegments[i].y + perpY * (roadWidth / 2));
+                            }
+                        }
+                    }
+                    ctx.stroke();
+                    
+                    // Yol orta çizgisi (kesikli sarı)
+                    ctx.setLineDash([15, 10]);
+                    ctx.strokeStyle = '#FFFF00';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(screenSegments[0].x, screenSegments[0].y);
+                    for (let i = 1; i < screenSegments.length; i++) {
+                        ctx.lineTo(screenSegments[i].x, screenSegments[i].y);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+            
+            // Araba çizimi
+            if (roadTripCar.x !== null && roadTripCar.y !== null) {
+                const carScreenX = roadTripCar.x - camera.x;
+                const carScreenY = roadTripCar.y - camera.y;
+                
+                ctx.save();
+                ctx.translate(carScreenX, carScreenY);
+                ctx.rotate(roadTripCar.angle);
+                
+                // Modern beyaz araba (drawIstanbulDatca ile aynı stil)
+                ctx.imageSmoothingEnabled = true;
+                
+                const carWidth = roadTripCar.width;
+                const carHeight = roadTripCar.height;
+                
+                // Araba gövdesi - yuvarlatılmış köşeler (beyaz gradient)
+                const bodyGradient = ctx.createLinearGradient(-carWidth/2, -carHeight/2, -carWidth/2, carHeight/2);
+                bodyGradient.addColorStop(0, '#FFFFFF');
+                bodyGradient.addColorStop(0.5, '#F8F8F8');
+                bodyGradient.addColorStop(1, '#E8E8E8');
+                ctx.fillStyle = bodyGradient;
+                const radius = 8;
+                ctx.beginPath();
+                ctx.moveTo(-carWidth/2 + radius, -carHeight/2);
+                ctx.lineTo(carWidth/2 - radius, -carHeight/2);
+                ctx.quadraticCurveTo(carWidth/2, -carHeight/2, carWidth/2, -carHeight/2 + radius);
+                ctx.lineTo(carWidth/2, carHeight/2 - radius);
+                ctx.quadraticCurveTo(carWidth/2, carHeight/2, carWidth/2 - radius, carHeight/2);
+                ctx.lineTo(-carWidth/2 + radius, carHeight/2);
+                ctx.quadraticCurveTo(-carWidth/2, carHeight/2, -carWidth/2, carHeight/2 - radius);
+                ctx.lineTo(-carWidth/2, -carHeight/2 + radius);
+                ctx.quadraticCurveTo(-carWidth/2, -carHeight/2, -carWidth/2 + radius, -carHeight/2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Araba gölgesi
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+                ctx.fillRect(-carWidth/2 + 3, carHeight/2 - 3, carWidth - 6, 6);
+                
+                // Araba üst highlight
+                const highlightGradient = ctx.createLinearGradient(-carWidth/2, -carHeight/2, -carWidth/2, -carHeight/2 + 15);
+                highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+                highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = highlightGradient;
+                ctx.fillRect(-carWidth/2, -carHeight/2, carWidth, 15);
+                
+                // Ön cam (mavi gradient)
+                const windowGradient = ctx.createLinearGradient(-carWidth/2 + 20, -carHeight/2 + 10, -carWidth/2 + 20, -carHeight/2 + 32);
+                windowGradient.addColorStop(0, '#B8E6FF');
+                windowGradient.addColorStop(1, '#7FB8D9');
+                ctx.fillStyle = windowGradient;
+                ctx.fillRect(-carWidth/2 + 20, -carHeight/2 + 10, 38, 22);
+                
+                // Arka cam (mavi gradient)
+                ctx.fillStyle = windowGradient;
+                ctx.fillRect(carWidth/2 - 58, -carHeight/2 + 10, 38, 22);
+                
+                // Ön farlar (sarı)
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(carWidth/2 - 5, -carHeight/2 + 15, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Arka lambalar
+                ctx.fillStyle = '#FF0000';
+                ctx.beginPath();
+                ctx.arc(-carWidth/2 + 5, -carHeight/2 + 15, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            // Tabelaları EN SON çiz (yolun ve arabanın üstünde görünmeleri için)
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // Transform'u sıfırla
+            
+            // Datça tabelası (sağ alt köşe - başlangıç)
+            const datcaX = canvas.width - 160;
+            const datcaY = canvas.height - 120;
+            const tabelaWidth = 140;
+            const tabelaHeight = 50;
+
+            // Tabela arka planı (beyaz dikdörtgen)
+            ctx.fillStyle = '#FFFFFF';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(datcaX, datcaY, tabelaWidth, tabelaHeight, 5);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Datça yazısı
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Datça', datcaX + tabelaWidth / 2, datcaY + tabelaHeight / 2);
+            
+            // Tabela direği (Datça tabelasının altında)
+            ctx.fillStyle = '#8B4513'; // Kahverengi direk
+            ctx.fillRect(datcaX + tabelaWidth / 2 - 3, datcaY + tabelaHeight, 6, 30);
+            
+            // Istanbul tabelası (sol üst köşe - hedef)
+            const istanbulX = 20;
+            const istanbulY = 20;
+
+            // Tabela arka planı (beyaz dikdörtgen)
+            ctx.fillStyle = '#FFFFFF';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(istanbulX, istanbulY, tabelaWidth, tabelaHeight, 5);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Istanbul yazısı
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Istanbul', istanbulX + tabelaWidth / 2, istanbulY + tabelaHeight / 2);
+            
+            // Tabela direği (Istanbul tabelasının altında)
+            ctx.fillStyle = '#8B4513'; // Kahverengi direk
+            ctx.fillRect(istanbulX + tabelaWidth / 2 - 3, istanbulY + tabelaHeight, 6, 30);
+            
+            ctx.restore(); // Canvas state'i geri yükle
+        }
+        
         // Datça sahnesi arabası güncelleme
         function updateDatcaCar() {
             if (game.sceneState !== 'datca') return;
@@ -3892,6 +4425,15 @@
                 if (game.datcaCharactersInCar) {
                     player.x = game.datcaCarX;
                     hedgehog.x = game.datcaCarX - 50;
+                }
+                
+                // Araba ekrandan çıktı mı kontrol et
+                const carScreenX = game.datcaCarX - camera.x;
+                if (carScreenX > canvas.width + 100) {
+                    // Araba ekrandan çıktı, Datça-Istanbul yolculuk sahnesine geç
+                    game.datcaCarDrivingAway = false;
+                    game.sceneState = 'datcaIstanbul';
+                    initializeDatcaIstanbulScene();
                 }
 
                 return;
@@ -4588,6 +5130,15 @@
         
         // Istanbul-Datça yolculuk sahnesi başlatma
         function initializeIstanbulDatcaScene() {
+            roadTripCar.routeProgress = 0;
+            roadTripCar.isMoving = true;
+            // Kamera sıfırla (yeni sahne için)
+            camera.x = 0;
+            camera.y = 0;
+        }
+        
+        // Datça-Istanbul yolculuk sahnesi başlatma
+        function initializeDatcaIstanbulScene() {
             roadTripCar.routeProgress = 0;
             roadTripCar.isMoving = true;
             // Kamera sıfırla (yeni sahne için)
@@ -6495,6 +7046,161 @@
             roadTripCar.angle = Math.atan2(nextPos.y - roadTripCar.y, nextPos.x - roadTripCar.x);
         }
         
+        // Datça-Istanbul rota pozisyonu hesaplama (ters yön, 3 satırlı, smooth geçişlerle)
+        function getRoadTripPositionReverse(progress) {
+            // Datça tabelasının başlangıç pozisyonu
+            const datcaTableX = canvas.width - 160;
+            
+            // Araba genişliği
+            const carHalfWidth = roadTripCar.width / 2; // 160 / 2 = 80
+            
+            // Datça başlangıç pozisyonu (tabelanın başladığı yerden 10px önce)
+            // İstanbul-Datça ile aynı mantık: Yol bitiş pozisyonu (Datça tabelasının başladığı yerden 10px önce)
+            const roadEndX = datcaTableX - 10; // (canvas.width - 160) - 10 = canvas.width - 170
+            const startX = roadEndX - carHalfWidth; // Araba merkezinin başlangıç yeri (İstanbul->Datça'daki endX ile aynı)
+            const startY = canvas.height - 100;
+            
+            // Istanbul tabelasının bitiş pozisyonu
+            const istanbulTableX = 20;
+            const tabelaWidth = 140;
+            const istanbulTableRight = istanbulTableX + tabelaWidth; // Tabelanın sağ kenarı
+            
+            // Istanbul bitiş pozisyonu (tabelanın bittiği pixelden +5 pixel sonra)
+            // İstanbul-Datça ile aynı mantık: startX ile aynı hesaplama
+            const roadStartX = istanbulTableRight + 5; // 20 + 140 + 5 = 165
+            const endX = roadStartX + carHalfWidth; // Araba merkezinin bitiş yeri
+            const endY = 80;
+            
+            // 3 satır için hesaplama (TERS YÖN - İstanbul->Datça'nın tam tersi)
+            // Satır 1: Sağ -> Sol (tamamen) [İstanbul->Datça'nın Satır 3'ünün tersi]
+            // Geçiş 1: Sol alt -> Sol orta (smooth curve yukarı) [İstanbul->Datça'nın Geçiş 2'nin tersi]
+            // Satır 2: Sol -> Sağ (tamamen) [İstanbul->Datça'nın Satır 2'nin tersi]
+            // Geçiş 2: Sağ orta -> Sağ üst (smooth curve yukarı) [İstanbul->Datça'nın Geçiş 1'in tersi]
+            // Satır 3: Sağ -> Sol (tamamen, Istanbul'a) [İstanbul->Datça'nın Satır 1'in tersi]
+            
+            const totalWidth = startX - endX; // Toplam yol genişliği (ters yön)
+            const rowSpacing = (startY - endY) / 2; // İki satır arası mesafe
+            const row1Y = startY;
+            const row2Y = startY - rowSpacing;
+            const row3Y = endY;
+            
+            // Geçiş bölümlerinin uzunluğu (progress payı)
+            const transitionProgress = 0.05; // Her geçiş %5 progress alır
+            const rowProgress = (1 - transitionProgress * 2) / 3; // Her satır için progress
+            
+            let t = progress;
+            let x, y;
+            
+            if (t < rowProgress) {
+                // Satır 1: Sağ -> Sol (tamamen) - İstanbul->Datça'nın Satır 3'ünün tersi
+                t = t / rowProgress;
+                x = startX - (totalWidth * t);
+                y = row1Y;
+            } else if (t < rowProgress + transitionProgress) {
+                // Geçiş 1: Sol alt -> Sol orta (smooth curve yukarı) - İstanbul->Datça'nın Geçiş 2'nin tersi
+                t = (t - rowProgress) / transitionProgress;
+                // Bezier curve ile smooth geçiş (X- ekseninde uzatılmış - İstanbul->Datça ile aynı mantık)
+                const p1X = endX;
+                const p1Y = row1Y;
+                const cpX = endX - 30; // Sola doğru hafif kıvrım (İstanbul->Datça'nın startX - 30 ile simetrik)
+                const cpY = (row1Y + row2Y) / 2; // Orta nokta
+                const p2X = endX;
+                const p2Y = row2Y;
+                x = p1X * (1-t) * (1-t) + cpX * 2 * (1-t) * t + p2X * t * t;
+                y = p1Y * (1-t) * (1-t) + cpY * 2 * (1-t) * t + p2Y * t * t;
+            } else if (t < rowProgress * 2 + transitionProgress) {
+                // Satır 2: Sol -> Sağ (tamamen) - İstanbul->Datça'nın Satır 2'nin tersi
+                t = (t - rowProgress - transitionProgress) / rowProgress;
+                x = endX + (totalWidth * t);
+                y = row2Y;
+            } else if (t < rowProgress * 2 + transitionProgress * 2) {
+                // Geçiş 2: Sağ orta -> Sağ üst (smooth curve yukarı) - İstanbul->Datça'nın Geçiş 1'in tersi
+                t = (t - rowProgress * 2 - transitionProgress) / transitionProgress;
+                // Bezier curve ile smooth geçiş (X+ ekseninde uzatılmış - İstanbul->Datça ile aynı mantık)
+                const p1X = startX;
+                const p1Y = row2Y;
+                const cpX = startX + 100; // Sağa doğru daha fazla uzatılmış (İstanbul->Datça'nın endX + 100 ile simetrik)
+                const cpY = (row2Y + row3Y) / 2; // Orta nokta
+                const p2X = startX;
+                const p2Y = row3Y;
+                x = p1X * (1-t) * (1-t) + cpX * 2 * (1-t) * t + p2X * t * t;
+                y = p1Y * (1-t) * (1-t) + cpY * 2 * (1-t) * t + p2Y * t * t;
+            } else {
+                // Satır 3: Sağ -> Sol (tamamen, Istanbul'a) - İstanbul->Datça'nın Satır 1'in tersi
+                t = (t - rowProgress * 2 - transitionProgress * 2) / rowProgress;
+                x = startX - (totalWidth * t);
+                y = row3Y;
+            }
+            
+            return { x, y };
+        }
+        
+        // Ters yön yol segmentlerini hesapla (Datça -> Istanbul)
+        function getRoadPathSegmentsReverse() {
+            const segments = [];
+            
+            // Geçiş bölümlerinde daha fazla segment kullan (smooth görünüm için)
+            const baseSegmentCount = 400; // Temel segment sayısı
+            const transitionMultiplier = 5; // Geçiş bölümlerinde 5 kat daha fazla segment
+            
+            // TÜM yolu hesapla (0'dan 1'e kadar - araba ilerlemesi önemli değil)
+            const transitionProgress = 0.05; // Her geçiş %5 progress alır
+            const rowProgress = (1 - transitionProgress * 2) / 3; // Her satır için progress
+            
+            // Progress aralıklarını tanımla
+            const row1End = rowProgress;
+            const transition1End = rowProgress + transitionProgress;
+            const row2End = rowProgress * 2 + transitionProgress;
+            const transition2End = rowProgress * 2 + transitionProgress * 2;
+            const row3End = 1;
+            
+            // Her bölüm için uygun sayıda segment hesapla
+            let currentProgress = 0;
+            const totalSegments = Math.ceil(
+                (row1End * baseSegmentCount) + 
+                ((transition1End - row1End) * baseSegmentCount * transitionMultiplier) +
+                ((row2End - transition1End) * baseSegmentCount) +
+                ((transition2End - row2End) * baseSegmentCount * transitionMultiplier) +
+                ((row3End - transition2End) * baseSegmentCount)
+            );
+            
+            // Segment sayısını normalize et
+            for (let i = 0; i <= totalSegments; i++) {
+                const progress = i / totalSegments;
+                const pos = getRoadTripPositionReverse(progress);
+                segments.push(pos);
+            }
+            
+            return segments;
+        }
+        
+        // Datça-Istanbul arabası güncelleme
+        function updateDatcaIstanbulCar() {
+            if (game.sceneState !== 'datcaIstanbul') return;
+            if (!roadTripCar.isMoving) return;
+            
+            roadTripCar.routeProgress += roadTripCar.speed;
+            
+            if (roadTripCar.routeProgress >= 1) {
+                roadTripCar.routeProgress = 1;
+                roadTripCar.isMoving = false;
+                // Istanbul'a ulaşıldı, burada sahne bitiyor (veya başka bir sahneye geçilebilir)
+                // Şimdilik burada durabilir, gelecekte başka bir sahneye geçiş eklenebilir
+                return;
+            }
+            
+            // Rotadan pozisyonu al
+            const pos = getRoadTripPositionReverse(roadTripCar.routeProgress);
+            roadTripCar.x = pos.x;
+            roadTripCar.y = pos.y;
+
+            // Arabanın açısını hesapla (hareket yönüne göre)
+            // İstanbul->Datça ile aynı mantık: SONRAKI pozisyona bak
+            const nextProgress = Math.min(1, roadTripCar.routeProgress + 0.01);
+            const nextPos = getRoadTripPositionReverse(nextProgress);
+            roadTripCar.angle = Math.atan2(nextPos.y - roadTripCar.y, nextPos.x - roadTripCar.x);
+        }
+        
         // Tekne güncelleme (rotada hareket)
         function updateBoat() {
             // island sahnesinde: iskeleden adaya
@@ -7268,12 +7974,6 @@
             } else if (game.state === 'playing') {
                 // Playing screen - SADECE playing state'inde
 
-                // TEST MODU: datca sahnesi için başlangıç ayarları
-                if (game.sceneState === 'datca' && !datcaInitialized) {
-                    // Datça sahnesini başlat
-                    initializeDatcaScene();
-                    datcaInitialized = true;
-                }
 
                 // Update
                 // Açılış sahnesinde oyuncu hareket edemez
@@ -7318,6 +8018,7 @@
                 updateHedgehogAnimation();  // Kirpi animasyonu güncelle
                 updateCar();  // Araba hareketi (returningHome sahnesi)
                 updateRoadTripCar();  // Istanbul-Datça arabası hareketi
+                updateDatcaIstanbulCar();  // Datça-Istanbul arabası hareketi
                 updateDatcaCar();  // Datça sahnesi arabası hareketi
 
                 // Datça sahnesinde kirpinin otele ulaşmasını kontrol et
@@ -7408,6 +8109,9 @@
                 } else if (game.sceneState === 'istanbulDatca') {
                     // Istanbul-Datça yolculuk sahnesi
                     drawIstanbulDatca();
+                } else if (game.sceneState === 'datcaIstanbul') {
+                    // Datça-Istanbul yolculuk sahnesi
+                    drawDatcaIstanbul();
                 } else if (game.sceneState === 'datca') {
                     // Datça sahnesi (onIsland benzeri)
                     drawDatca();
@@ -7469,13 +8173,7 @@
             ctx.restore();
         }
 
-        // TEST MODU: Oyunu datca sahnesinden başlat
-        // TODO: Test bittiğinde bu satırları kaldır veya yorum satırına al
-        game.state = 'playing';
-        game.sceneState = 'datca';
-        
-        // İlk çerçevede initializeDatcaScene çağrılacak
-        let datcaInitialized = false;
+        // Oyun ana menüden başlar (intro state)
 
         // Start game
         gameLoop();
