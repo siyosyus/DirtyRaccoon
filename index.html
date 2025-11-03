@@ -1567,6 +1567,118 @@
             });
         });
 
+        // Touch event desteği - Mobil cihazlar için (tüm canvas tıklamalarına)
+        function handleCanvasTouch(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+
+            // Touch koordinatlarını al (ilk touch point)
+            const touch = e.touches[0] || e.changedTouches[0];
+            if (!touch) return;
+
+            // Canvas'ın ölçeklenmiş boyutlarını hesapla
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            // Touch koordinatlarını canvas koordinatlarına çevir
+            const mouseX = (touch.clientX - rect.left) * scaleX;
+            const mouseY = (touch.clientY - rect.top) * scaleY;
+
+            // Check start button (intro screen)
+            if (game.state === 'intro' && game.startButton) {
+                const btn = game.startButton;
+                if (mouseX > btn.x && mouseX < btn.x + btn.width &&
+                    mouseY > btn.y && mouseY < btn.y + btn.height) {
+                    changeGameState('verification');
+                    return;
+                }
+            }
+
+            // Check verification quiz answers
+            if (game.state === 'verification') {
+                const answerBoxY = 350;
+                const answerHeight = 50;
+                const answerSpacing = 60;
+
+                verificationQuiz.answers.forEach((answer, index) => {
+                    const y = answerBoxY + index * answerSpacing;
+                    if (mouseX > 250 && mouseX < 550 && mouseY > y && mouseY < y + answerHeight) {
+                        if (index === verificationQuiz.correctAnswer) {
+                            verificationQuiz.errorMessage = '';
+                            changeGameState('playing');
+                        } else {
+                            verificationQuiz.errorMessage = 'Püh senin kalıbına!!';
+                        }
+                    }
+                });
+                return;
+            }
+
+            // Check back button (playing screen)
+            if (game.state === 'playing' && game.backButton) {
+                const btn = game.backButton;
+                const centerX = btn.x + btn.width / 2;
+                const centerY = btn.y + btn.height / 2;
+                const radius = btn.width / 2;
+                const distance = Math.sqrt(Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2));
+
+                if (distance <= radius) {
+                    changeGameState('intro');
+                    return;
+                }
+            }
+
+            // Check dialog answers
+            if (!dialog.isOpen) return;
+
+            const dialogX = 150;
+            const dialogY = 200;
+            const dialogWidth = 500;
+            const textPadding = 40;
+            const maxTextWidth = dialogWidth - (textPadding * 2);
+            const lineHeight = 28;
+
+            ctx.font = 'bold 20px Arial';
+            const textLines = wrapText(dialog.text, maxTextWidth, 'bold 20px Arial');
+            let text2Lines = [];
+            if (dialog.text2) {
+                text2Lines = wrapText(dialog.text2, maxTextWidth, 'bold 20px Arial');
+            }
+
+            const textHeight = textLines.length * lineHeight;
+            const text2Height = text2Lines.length * lineHeight;
+            const textGap = text2Lines.length > 0 ? 15 : 0;
+            const totalTextHeight = textHeight + text2Height + textGap;
+
+            const clickAnswerHeight = 40;
+            const clickAnswerBoxWidth = dialogWidth - 100;
+            const clickAnswerTextWidth = clickAnswerBoxWidth - 40;
+
+            let clickAnswerOffsetY = 0;
+            dialog.answers.forEach((answer, index) => {
+                ctx.font = 'bold 18px Arial';
+                const answerTextLines = wrapText(answer, clickAnswerTextWidth, 'bold 18px Arial');
+                const answerBoxHeight = Math.max(clickAnswerHeight, answerTextLines.length * 22 + 10);
+
+                const answerX = dialogX + 50;
+                const answerY = dialogY + textPadding + totalTextHeight + 20 + clickAnswerOffsetY;
+                const answerWidth = clickAnswerBoxWidth;
+
+                if (mouseX > answerX && mouseX < answerX + answerWidth &&
+                    mouseY > answerY && mouseY < answerY + answerBoxHeight) {
+                    handleAnswer(index);
+                }
+
+                clickAnswerOffsetY += answerBoxHeight + 10;
+            });
+        }
+
+        // Canvas'a touch event listener'ları ekle
+        canvas.addEventListener('touchstart', handleCanvasTouch, { passive: false });
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
         // Update player
         function updatePlayer() {
             // Datça sahnesinde arabaya doğru yürüme kontrolü
