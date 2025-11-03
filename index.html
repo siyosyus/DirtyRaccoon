@@ -1711,6 +1711,16 @@
             const mouseX = (touchX / renderWidth) * canvasWidth;
             const mouseY = (touchY / renderHeight) * canvasHeight;
 
+            // DEBUG: Koordinatları konsola yazdır
+            console.log('Touch Debug:', {
+                raw: { x: touch.clientX, y: touch.clientY },
+                rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+                letterbox: { offsetX, offsetY, renderWidth, renderHeight },
+                adjusted: { touchX, touchY },
+                canvas: { mouseX: Math.round(mouseX), mouseY: Math.round(mouseY) },
+                canvasSize: { width: canvasWidth, height: canvasHeight }
+            });
+
             // Check start button (intro screen)
             if (game.state === 'intro' && game.startButton) {
                 const btn = game.startButton;
