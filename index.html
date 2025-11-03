@@ -1522,8 +1522,37 @@
         // Add mouse click for answers and start button
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+
+            // Letterbox offset hesapla (touch ile aynı mantık)
+            const canvasWidth = canvas.width; // 800
+            const canvasHeight = canvas.height; // 600
+            const canvasAspect = canvasWidth / canvasHeight;
+
+            const displayWidth = rect.width;
+            const displayHeight = rect.height;
+            const displayAspect = displayWidth / displayHeight;
+
+            let renderWidth, renderHeight, offsetX, offsetY;
+
+            if (displayAspect > canvasAspect) {
+                // Yanlarda letterbox
+                renderHeight = displayHeight;
+                renderWidth = renderHeight * canvasAspect;
+                offsetX = (displayWidth - renderWidth) / 2;
+                offsetY = 0;
+            } else {
+                // Üst/altta letterbox
+                renderWidth = displayWidth;
+                renderHeight = renderWidth / canvasAspect;
+                offsetX = 0;
+                offsetY = (displayHeight - renderHeight) / 2;
+            }
+
+            // Mouse koordinatlarını canvas koordinatlarına çevir
+            const clickX = e.clientX - rect.left - offsetX;
+            const clickY = e.clientY - rect.top - offsetY;
+            const mouseX = (clickX / renderWidth) * canvasWidth;
+            const mouseY = (clickY / renderHeight) * canvasHeight;
 
             // Check start button (intro screen)
             if (game.state === 'intro' && game.startButton) {
