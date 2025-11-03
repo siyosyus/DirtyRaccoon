@@ -613,7 +613,7 @@
             state: 'playing',  // 'intro', 'verification', 'playing', 'finished' - TEST: 'playing' olarak başlat
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
-            sceneState: 'closing',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'istanbulDatca', 'datca', 'datcaIstanbul', 'closing' - TEST: 'closing' olarak başlat
+            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'finalScene', 'istanbulDatca', 'datca', 'datcaIstanbul', 'closing' - Normal akış
             openingDialogShown: false,  // Açılış dialogu gösterildi mi?
             caffeNeroDialogShown: false,  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
             dockDialogShown: false,  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
@@ -621,10 +621,13 @@
             islandDecorations: [],  // Ada sahnesindeki dekorasyonlar (bir kez hesaplanıp saklanır)
             islandDecorationsInitialized: false,  // Dekorasyonlar hesaplandı mı?
             closingInitialized: false,  // Kapanış sahnesi başlatıldı mı? (TEST için)
-            carEntered: false,  // Arabaya binildi mi? (returningHome sahnesi için)
+            returningHomeInitialized: false,  // returningHome sahnesi başlatıldı mı? (TEST için)
+            finalSceneInitialized: false,  // finalScene sahnesi başlatıldı mı? (TEST için)
+            carEntered: false,  // Arabaya binildi mi? (returningHome/finalScene sahnesi için)
             carPositionLogged: false,  // Araba pozisyonu loglandı mı? (debug için)
             carMoving: false,  // Araba hareket ediyor mu? (arabaya binme sonrası)
             gameOver: false,  // Game Over ekranı gösterilsin mi?
+            gameCompleted: false,  // Oyun başarıyla tamamlandı mı?
             playerTargetX: null,  // Rakun'un hedef pozisyonu (arabaya yürüme için)
             datcaCharactersMovingToCar: false,  // Karakterler arabaya doğru yürüyor mu?
             datcaCarDrivingAway: false,  // Araba ekrandan çıkıyor mu? (karakterler bindikten sonra)
@@ -632,7 +635,12 @@
             closingCarTargetX: null,  // Kapanış sahnesi arabası hedef pozisyonu (hotel önü)
             closingCarMoving: false,  // Kapanış sahnesi arabası hareket ediyor mu?
             closingCarArrived: false,  // Kapanış sahnesi arabası hedefe ulaştı mı?
-            closingCharactersInCar: true  // Kapanış sahnesinde karakterler arabada mı?
+            closingCharactersInCar: true,  // Kapanış sahnesinde karakterler arabada mı?
+            finalSceneCarX: null,  // Final sahnesi arabası pozisyonu
+            finalSceneCarTargetX: null,  // Final sahnesi arabası hedef pozisyonu (hotel önü)
+            finalSceneCarMoving: true,  // Final sahnesi arabası hareket ediyor mu? (başlangıçta true)
+            finalSceneCarArrived: false,  // Final sahnesi arabası hedefe ulaştı mı?
+            finalSceneCharactersInCar: true  // Final sahnesinde karakterler arabada mı?
         };
 
         // Tekne objesi (ada sahnesi için)
@@ -1214,6 +1222,16 @@
             dialog.currentObject = 'dock'; // İskele diyaloğu için identifier
         }
 
+        // Open Final Scene Dialog (final sahne diyaloğu - arabadan indikten sonra)
+        function openFinalSceneDialog() {
+            dialog.isOpen = true;
+            dialog.isHedgehogDialog = false;
+            dialog.text = 'Zamanda yolculuğumuzun sonuna geldik. İşte şimdi kahveden güzel bir yudum almalısın bence. Seni sevdiğimi sakın unutma olur mu. Seni tanıdığım için, beni hayatına kabul ettiğin için çok şanslıyım.';
+            dialog.text2 = 'Neyse akşam yemeğe gidiyoruz ve yarın da Abant tatilimiz başlıyor. Şimdi sıra onların tadını çıkarmakta.';
+            dialog.answers = ['Ha unutmadan, bir öpücüğünü alırım :) Seni çok seviyorum boncuğum.'];
+            dialog.currentObject = 'finalScene';
+        }
+
         // Open Hotel dialog (Otel diyaloğu)
         function openHotelDialog() {
             dialog.isOpen = true;
@@ -1437,6 +1455,14 @@
                 game.carEntered = true;
                 game.carMoving = true; // Arabayı hareket ettir
                 closeDialog();
+                return;
+            }
+
+            // Final Scene diyaloğu ise
+            if (!dialog.isHedgehogDialog && dialog.currentObject === 'finalScene') {
+                closeDialog();
+                // Oyun tamamlandı ekranını göster
+                game.gameCompleted = true;
                 return;
             }
 
@@ -4118,7 +4144,331 @@
                 drawPlayer();
             }
         }
-        
+
+        // Draw final scene (returningHome benzeri ama deniz/iskele/tekne yok - sadece yol, evler, dekorasyonlar)
+        function drawFinalScene() {
+            // Gökyüzü gradient (arka plan)
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');      // Gökyüzü mavisi (üst)
+            gradient.addColorStop(0.7, '#B0E0E6');   // Açık mavi
+            gradient.addColorStop(1, '#E0F6FF');      // Çok açık mavi (alt)
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const groundLevel = GROUND_LEVEL;
+
+            // Yol başlangıç pozisyonu (ekranın en solundan başla - deniz/iskele yok)
+            const roadStartX = 0;
+
+            // Evleri çiz: home1, home2, home1, home2, hotel, home1
+            const housesPattern = [
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.hotel, name: 'hotel' },
+                { sprite: sprites.island.home1, name: 'home1' }
+            ];
+
+            // İlk ev pozisyonu: Yol başlangıcından 150px sonra
+            const houseStartX = roadStartX + 150;
+            let currentHouseX = houseStartX;
+            const houseSpacing = 40;
+            const houseScale = 1.35;
+
+            // Evlerin toplam genişliğini hesapla
+            let totalHousesWidth = 0;
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+                if (house.sprite && house.sprite.complete) {
+                    const houseWidth = house.sprite.width * houseScale;
+                    totalHousesWidth += houseWidth;
+                    if (i < housesPattern.length - 1) {
+                        totalHousesWidth += houseSpacing;
+                    }
+                }
+            }
+
+            // Zemin başlangıç ve bitiş pozisyonları
+            const groundStartX = roadStartX;
+            const lastHouseRight = houseStartX + totalHousesWidth;
+            const groundEndX = camera.x + canvas.width + 500; // Ekranın sonundan 500px daha fazla
+
+            // Zemin çiz (düz gri kaldırım)
+            const roadHeight = 70;
+            const screenY = groundLevel - camera.y;
+            const groundScreenStartX = groundStartX - camera.x;
+            const groundScreenEndX = groundEndX - camera.x;
+
+            // Basit düz gri kaldırım
+            ctx.fillStyle = '#C0C0C0'; // Açık gri kaldırım
+            ctx.fillRect(groundScreenStartX, screenY, groundScreenEndX - groundScreenStartX, roadHeight);
+
+            // Üst kısmına hafif bir gölge/kenarlık
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(groundScreenStartX, screenY, groundScreenEndX - groundScreenStartX, 2);
+
+            // Alt kısmına da hafif bir gölge
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(groundScreenStartX, screenY + roadHeight - 2, groundScreenEndX - groundScreenStartX, 2);
+
+            // Evleri çiz
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+
+                if (house.sprite && house.sprite.complete) {
+                    const originalWidth = house.sprite.width;
+                    const originalHeight = house.sprite.height;
+                    const houseWidth = originalWidth * houseScale;
+                    const houseHeight = originalHeight * houseScale;
+
+                    const screenX = currentHouseX - camera.x;
+                    let verticalOffset = 0;
+                    if (house.name === 'home1') {
+                        verticalOffset = 23;
+                    } else if (house.name === 'home2') {
+                        verticalOffset = 15;
+                    }
+                    const screenYHouse = groundLevel - houseHeight + verticalOffset;
+
+                    if (screenX + houseWidth > 0 && screenX < canvas.width) {
+                        // Ev çitleri
+                        const wallVerticalSprite = sprites.island.decoration.wallVertical;
+                        const wallHorizontalSprite = sprites.island.decoration.wallHorizontal;
+                        const wallPadding = 10;
+
+                        if (wallVerticalSprite && wallVerticalSprite.complete &&
+                            wallHorizontalSprite && wallHorizontalSprite.complete) {
+
+                            const wallVWidth = wallVerticalSprite.width;
+                            const wallVHeight = wallVerticalSprite.height;
+                            const wallHWidth = wallHorizontalSprite.width;
+                            const wallHHeight = wallHorizontalSprite.height;
+                            const roadTop = groundLevel;
+                            const fenceTop = screenYHouse;
+                            const fenceBottom = roadTop - camera.y;
+                            const fenceHeight = fenceBottom - fenceTop;
+
+                            if (fenceHeight > 0) {
+                                // Sol çit
+                                const wallScreenX = screenX - wallPadding - wallVWidth;
+                                for (let y = fenceTop; y < fenceBottom; y += wallVHeight) {
+                                    const currentFenceHeight = Math.min(wallVHeight, fenceBottom - y);
+                                    ctx.drawImage(
+                                        wallVerticalSprite,
+                                        0, 0, wallVWidth, currentFenceHeight,
+                                        wallScreenX, y, wallVWidth, currentFenceHeight
+                                    );
+                                }
+                            }
+
+                            if (fenceHeight > 0) {
+                                // Sağ çit
+                                const wallScreenX = screenX + houseWidth + wallPadding;
+                                for (let y = fenceTop; y < fenceBottom; y += wallVHeight) {
+                                    const currentFenceHeight = Math.min(wallVHeight, fenceBottom - y);
+                                    ctx.drawImage(
+                                        wallVerticalSprite,
+                                        0, 0, wallVWidth, currentFenceHeight,
+                                        wallScreenX, y, wallVWidth, currentFenceHeight
+                                    );
+                                }
+                            }
+
+                            // Üst çit (sol)
+                            const topWallLeft = screenX - wallPadding - wallVWidth;
+                            const topWallRight = screenX + houseWidth / 2;
+                            const topWallY = screenYHouse;
+                            let topWallX = topWallLeft;
+                            while (topWallX < topWallRight) {
+                                ctx.drawImage(wallHorizontalSprite, topWallX, topWallY, wallHWidth, wallHHeight);
+                                topWallX += wallHWidth;
+                            }
+
+                            // Üst çit (sağ)
+                            const topWallLeft2 = screenX + houseWidth / 2;
+                            const topWallRight2 = screenX + houseWidth + wallPadding + wallVWidth;
+                            topWallX = topWallLeft2;
+                            while (topWallX < topWallRight2) {
+                                ctx.drawImage(wallHorizontalSprite, topWallX, topWallY, wallHWidth, wallHHeight);
+                                topWallX += wallHWidth;
+                            }
+                        }
+
+                        // Ev gölgesi
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                        ctx.fillRect(screenX + 3, screenYHouse + houseHeight, houseWidth - 2, 5);
+
+                        // Ev sprite'ı
+                        ctx.drawImage(house.sprite, screenX, screenYHouse, houseWidth, houseHeight);
+                    }
+
+                    currentHouseX += houseWidth + houseSpacing;
+                }
+            }
+
+            // Dekorasyonları hesapla ve çiz (returningHome ile aynı mantık)
+            if (!game.islandDecorationsInitialized || game.islandDecorations.length === 0) {
+                let allDecorationsLoaded = true;
+                const decorationTypes = ['lamp', 'sit', 'tree', 'wallHorizontal', 'wallVertical'];
+                for (let d = 0; d < decorationTypes.length; d++) {
+                    const decType = decorationTypes[d];
+                    const decSprite = sprites.island.decoration[decType];
+                    if (!decSprite || !decSprite.complete) {
+                        allDecorationsLoaded = false;
+                        break;
+                    }
+                }
+
+                if (allDecorationsLoaded && game.islandDecorations.length === 0) {
+                    game.islandDecorations = [];
+                    const wallVerticalSprite = sprites.island.decoration.wallVertical;
+                    const wallPadding = 10;
+                    const wallVWidth = wallVerticalSprite.width;
+                    const houseBounds = [];
+                    let tempHouseX = houseStartX;
+
+                    for (let i = 0; i < housesPattern.length; i++) {
+                        const house = housesPattern[i];
+                        if (house.sprite && house.sprite.complete) {
+                            const houseWidth = house.sprite.width * houseScale;
+                            const houseLeft = tempHouseX;
+                            const houseRight = tempHouseX + houseWidth;
+                            const fenceLeft = houseLeft - wallPadding - wallVWidth;
+                            const fenceRight = houseRight + wallPadding + wallVWidth;
+
+                            houseBounds.push({
+                                houseLeft: houseLeft,
+                                houseRight: houseRight,
+                                fenceLeft: fenceLeft,
+                                fenceRight: fenceRight,
+                                fenceLeftInner: fenceLeft + wallVWidth,
+                                fenceRightInner: fenceRight - wallVWidth
+                            });
+
+                            tempHouseX = houseRight + houseSpacing;
+                        }
+                    }
+
+                    // Dekorasyonları yerleştir
+                    for (let i = 0; i < housesPattern.length; i++) {
+                        const house = houseBounds[i];
+
+                        if (house) {
+                            const decorationZoneStart = house.houseRight;
+                            const decorationZoneEnd = house.fenceRight - wallVWidth;
+                            const decorationZoneWidth = decorationZoneEnd - decorationZoneStart;
+
+                            if (decorationZoneWidth > 5) {
+                                const nonWallTypes = ['lamp', 'sit', 'tree'];
+                                const decorationIndex = i % nonWallTypes.length;
+                                const randomType = nonWallTypes[decorationIndex];
+                                const decorationSprite = sprites.island.decoration[randomType];
+
+                                if (decorationSprite && decorationSprite.complete) {
+                                    const zoneCenter = (decorationZoneStart + decorationZoneEnd) / 2;
+                                    const decorationX = zoneCenter - decorationSprite.width / 2 - 17;
+
+                                    game.islandDecorations.push({
+                                        type: randomType,
+                                        sprite: decorationSprite,
+                                        worldX: decorationX,
+                                        worldY: groundLevel
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // Özel: 2. ev ile 3. ev arasına çiçek
+                    if (houseBounds.length >= 3 && sprites.island.decoration.cicek &&
+                        sprites.island.decoration.cicek.complete) {
+                        const house1Right = houseBounds[1].houseRight;
+                        const house2Left = houseBounds[2].houseLeft;
+                        const gapCenter = (house1Right + house2Left) / 2;
+                        const cicekX = gapCenter - sprites.island.decoration.cicek.width / 2 - 17;
+
+                        game.islandDecorations.push({
+                            type: 'cicek',
+                            sprite: sprites.island.decoration.cicek,
+                            worldX: cicekX,
+                            worldY: groundLevel
+                        });
+                    }
+
+                    game.islandDecorationsInitialized = true;
+                }
+            }
+
+            // Dekorasyonları çiz
+            if (game.islandDecorations && game.islandDecorations.length > 0) {
+                for (let i = 0; i < game.islandDecorations.length; i++) {
+                    const decoration = game.islandDecorations[i];
+
+                    if (decoration.sprite && decoration.sprite.complete && decoration.sprite.naturalWidth > 0) {
+                        const decorationScreenX = decoration.worldX - camera.x;
+                        const decorationScreenY = (decoration.worldY - decoration.sprite.height) - camera.y;
+
+                        if (decorationScreenX + decoration.sprite.width > 0 && decorationScreenX < canvas.width) {
+                            ctx.drawImage(
+                                decoration.sprite,
+                                decorationScreenX, decorationScreenY
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Hotel pozisyonunu bul
+            let hotelWorldX = null;
+            let hotelWidth = 96 * houseScale;
+            let tempCurrentHouseX = houseStartX;
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+                if (house.sprite && house.sprite.complete) {
+                    const houseWidth = house.sprite.width * houseScale;
+
+                    if (i === 4 && house.name === 'hotel') {
+                        hotelWorldX = tempCurrentHouseX;
+                        hotelWidth = houseWidth;
+                        break;
+                    }
+
+                    tempCurrentHouseX += houseWidth + houseSpacing;
+                }
+            }
+
+            if (homeX === null) {
+                if (hotelWorldX !== null) {
+                    homeX = hotelWorldX;
+                } else {
+                    const lastHouseRightWorld = houseStartX + totalHousesWidth;
+                    homeX = lastHouseRightWorld;
+                }
+            }
+
+            // Araba pozisyonu: Hotel önünde
+            if (!game.carEntered) {
+                if (hotelWorldX !== null) {
+                    carX = hotelWorldX + (hotelWidth / 2) - 80;
+                } else {
+                    const lastHouseRightWorld = houseStartX + totalHousesWidth;
+                    const lastHouseWidth = sprites.island.home1 && sprites.island.home1.complete
+                        ? sprites.island.home1.width * houseScale : 100;
+                    carX = lastHouseRightWorld + 50;
+                }
+            }
+
+            // Araba çiz (finalScene için özel araba)
+            drawFinalSceneCar();
+
+            // Karakterler çiz (sadece arabadan indiyse)
+            if (!game.finalSceneCharactersInCar) {
+                drawHedgehog();
+                drawPlayer();
+            }
+        }
+
         // Draw Istanbul-Datça yolculuk sahnesi
         function drawIstanbulDatca() {
             // Gökyüzü gradient (arka plan)
@@ -5195,7 +5545,7 @@
         
         // Draw returning home car (eve dönüş arabası)
         function drawReturningHomeCar() {
-            if (game.sceneState !== 'returningHome') return;
+            if (game.sceneState !== 'returningHome' && game.sceneState !== 'finalScene') return;
             // carX null olabilir (hareket sırasında), bu durumda çizme
             if (carX === null) return;
             
@@ -5851,6 +6201,114 @@
             // Dekorasyonları sıfırla (yeniden hesaplanacak)
             game.islandDecorations = [];
             game.islandDecorationsInitialized = false;
+        }
+
+        // Final sahnesi başlatma (returningHome benzeri ama deniz/iskele yok)
+        function initializeFinalScene() {
+            // Sprite'ların yüklenip yüklenmediğini kontrol et
+            if (!sprites.island.hotel || !sprites.island.hotel.complete ||
+                !sprites.island.home1 || !sprites.island.home1.complete ||
+                !sprites.island.home2 || !sprites.island.home2.complete) {
+                console.log('Final Scene: Sprite\'lar henüz yüklenmedi, bekleniyor...');
+                // Sprite'lar yüklenene kadar bekle ve tekrar dene
+                setTimeout(initializeFinalScene, 100);
+                return;
+            }
+
+            // Yol başlangıç pozisyonu (ekranın en solundan başla - deniz/iskele yok)
+            const roadStartX = 0;
+
+            // Evlerin sırası (returningHome ile aynı)
+            const housesPattern = [
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.home1, name: 'home1' },
+                { sprite: sprites.island.home2, name: 'home2' },
+                { sprite: sprites.island.hotel, name: 'hotel' },
+                { sprite: sprites.island.home1, name: 'home1' }
+            ];
+
+            // İlk ev pozisyonu: Yol başlangıcından 150px sonra
+            const houseStartX = roadStartX + 150;
+            const houseSpacing = 40;
+            const houseScale = 1.35;
+
+            // Evlerin toplam genişliğini hesapla
+            let totalHousesWidth = 0;
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+                if (house.sprite && house.sprite.complete) {
+                    const houseWidth = house.sprite.width * houseScale;
+                    totalHousesWidth += houseWidth;
+                    if (i < housesPattern.length - 1) {
+                        totalHousesWidth += houseSpacing;
+                    }
+                }
+            }
+
+            // Hotel pozisyonunu bul (4. bina - index 4)
+            let hotelWorldX = null;
+            let hotelWidth = 96 * houseScale;
+            let currentHouseX = houseStartX;
+            for (let i = 0; i < housesPattern.length; i++) {
+                const house = housesPattern[i];
+                if (house.sprite && house.sprite.complete) {
+                    const houseWidth = house.sprite.width * houseScale;
+
+                    if (i === 4 && house.name === 'hotel') {
+                        hotelWorldX = currentHouseX;
+                        hotelWidth = houseWidth;
+                        break;
+                    }
+
+                    currentHouseX += houseWidth + houseSpacing;
+                }
+            }
+
+            const lastHouseRight = houseStartX + totalHousesWidth;
+            // homeX = hotel pozisyonu (oyuncunun evi)
+            if (hotelWorldX !== null) {
+                homeX = hotelWorldX;
+            } else {
+                homeX = lastHouseRight;
+            }
+
+            // Araba başlangıç ve hedef pozisyonları
+            game.finalSceneCarX = -200; // Ekranın solundan başla (ekran dışı)
+            if (hotelWorldX !== null) {
+                // Hotel önünde duracak
+                game.finalSceneCarTargetX = hotelWorldX + (hotelWidth / 2) - 80;
+                console.log('Final Scene: Hotel bulundu! hotelWorldX =', hotelWorldX, 'Target =', game.finalSceneCarTargetX);
+            } else {
+                game.finalSceneCarTargetX = houseStartX + 100;
+                console.log('Final Scene: Hotel bulunamadı! Fallback target =', game.finalSceneCarTargetX);
+            }
+            game.finalSceneCarMoving = true;
+            game.finalSceneCarArrived = false;
+            game.finalSceneCharactersInCar = true;
+
+            // Karakterleri arabada gizle (arabadan inene kadar görünmez)
+            player.x = game.finalSceneCarX;
+            player.y = GROUND_LEVEL - player.height;
+            hedgehog.x = game.finalSceneCarX;
+            hedgehog.y = GROUND_LEVEL - hedgehog.height;
+            player.velocityX = 0;
+            player.velocityY = 0;
+            player.isOnGround = true;
+            hedgehog.isMoving = false;
+            hedgehog.targetX = null;
+            hedgehog.showSpeechBubble = false;
+
+            // Dekorasyonları sıfırla
+            game.islandDecorations = [];
+            game.islandDecorationsInitialized = false;
+
+            // Kamerayı arabaya odakla
+            camera.x = Math.max(0, game.finalSceneCarX - canvas.width / 2);
+
+            // Başarıyla initialize edildi
+            game.finalSceneInitialized = true;
+            console.log('Final Scene başarıyla initialize edildi!');
         }
 
         // Ada sahnesi başlatma (karakterler adaya indiğinde)
@@ -7468,14 +7926,14 @@
             
             if (carX !== null) {
                 carX += carSpeed;
-                
+
                 // Araba ekrandan çıktı mı kontrol et
                 const carScreenX = carX - camera.x;
                 if (carScreenX > canvas.width + 100) {
-                    // Araba ekrandan çıktı, Istanbul-Datça yolculuk sahnesine geç
+                    // Araba ekrandan çıktı, final sahneye geç!
                     game.carMoving = false;
-                    game.sceneState = 'istanbulDatca';
-                    initializeIstanbulDatcaScene();
+                    game.sceneState = 'finalScene';
+                    // Final sahne başlatılacak (game loop'ta otomatik)
                 }
             }
         }
@@ -8004,6 +8462,148 @@
                 drawWheelSpokes(carScreenX + 30, wheelY, wheelRadius);
                 drawWheelSpokes(carScreenX + 130, wheelY, wheelRadius);
                 
+                // Araba gölgesi (zeminde)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.fillRect(carScreenX, carScreenY + carHeight + 10, carWidth, 4);
+            }
+        }
+
+        // Final sahnesi arabası güncelleme
+        function updateFinalSceneCar() {
+            if (game.sceneState !== 'finalScene') return;
+            if (!game.finalSceneCarMoving) return;
+            if (game.finalSceneCarX === null || game.finalSceneCarTargetX === null) {
+                console.log('Final Scene Car: Araba null! carX =', game.finalSceneCarX, 'targetX =', game.finalSceneCarTargetX);
+                return;
+            }
+
+            const carSpeed = 5; // Arabanın hızı (pixel/frame)
+
+            // Araba hedefe ulaşmadıysa hareket et
+            if (game.finalSceneCarX < game.finalSceneCarTargetX) {
+                game.finalSceneCarX += carSpeed;
+
+                // Karakterleri arabaylabirlikte hareket ettir
+                if (game.finalSceneCharactersInCar) {
+                    player.x = game.finalSceneCarX;
+                    hedgehog.x = game.finalSceneCarX - 50;
+                }
+
+                // Kamera arabayı takip et
+                camera.x = Math.max(0, game.finalSceneCarX - canvas.width / 2);
+
+                // Araba hedefe ulaştı mı?
+                if (game.finalSceneCarX >= game.finalSceneCarTargetX) {
+                    game.finalSceneCarX = game.finalSceneCarTargetX;
+                    game.finalSceneCarMoving = false;
+                    game.finalSceneCarArrived = true;
+
+                    // Karakterler arabadan in
+                    game.finalSceneCharactersInCar = false;
+                    player.x = game.finalSceneCarX + 100;
+                    player.y = GROUND_LEVEL - player.height;
+                    hedgehog.x = game.finalSceneCarX + 50;
+                    hedgehog.y = GROUND_LEVEL - hedgehog.height;
+
+                    // Otomatik diyalog aç (0.5 saniye sonra)
+                    setTimeout(() => {
+                        openFinalSceneDialog();
+                    }, 500);
+                }
+            }
+        }
+
+        // Final sahnesi arabası çizimi
+        function drawFinalSceneCar() {
+            if (game.sceneState !== 'finalScene') return;
+            if (game.finalSceneCarX === null || game.finalSceneCarX === undefined) return;
+
+            const carScreenX = game.finalSceneCarX - camera.x;
+            const carScreenY = GROUND_LEVEL - camera.y - 60; // Zeminden 60px yukarıda
+
+            // Araba sadece ekranda görünüyorsa çiz
+            if (carScreenX + 160 > 0 && carScreenX < canvas.width) {
+                ctx.imageSmoothingEnabled = true;
+
+                const carWidth = 160;
+                const carHeight = 55;
+
+                // Araba gövdesi - yuvarlatılmış köşeler (beyaz gradient)
+                const bodyGradient = ctx.createLinearGradient(carScreenX, carScreenY, carScreenX, carScreenY + carHeight);
+                bodyGradient.addColorStop(0, '#FFFFFF');
+                bodyGradient.addColorStop(0.5, '#F8F8F8');
+                bodyGradient.addColorStop(1, '#E8E8E8');
+                ctx.fillStyle = bodyGradient;
+                const radius = 8;
+                ctx.beginPath();
+                ctx.moveTo(carScreenX + radius, carScreenY);
+                ctx.lineTo(carScreenX + carWidth - radius, carScreenY);
+                ctx.quadraticCurveTo(carScreenX + carWidth, carScreenY, carScreenX + carWidth, carScreenY + radius);
+                ctx.lineTo(carScreenX + carWidth, carScreenY + carHeight - radius);
+                ctx.quadraticCurveTo(carScreenX + carWidth, carScreenY + carHeight, carScreenX + carWidth - radius, carScreenY + carHeight);
+                ctx.lineTo(carScreenX + radius, carScreenY + carHeight);
+                ctx.quadraticCurveTo(carScreenX, carScreenY + carHeight, carScreenX, carScreenY + carHeight - radius);
+                ctx.lineTo(carScreenX, carScreenY + radius);
+                ctx.quadraticCurveTo(carScreenX, carScreenY, carScreenX + radius, carScreenY);
+                ctx.closePath();
+                ctx.fill();
+
+                // Araba gölgesi (alt kısım)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+                ctx.fillRect(carScreenX + 3, carScreenY + carHeight - 3, carWidth - 6, 6);
+
+                // Araba üst highlight (parlaklık efekti)
+                const highlightGradient = ctx.createLinearGradient(carScreenX, carScreenY, carScreenX, carScreenY + 15);
+                highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+                highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = highlightGradient;
+                ctx.fillRect(carScreenX, carScreenY, carWidth, 15);
+
+                // Ön cam (sol - mavi gradient)
+                const windowGradient = ctx.createLinearGradient(carScreenX + 20, carScreenY + 10, carScreenX + 20, carScreenY + 28);
+                windowGradient.addColorStop(0, '#B8E6FF');
+                windowGradient.addColorStop(1, '#7FB8D9');
+                ctx.fillStyle = windowGradient;
+                ctx.fillRect(carScreenX + 20, carScreenY + 10, 38, 22);
+
+                // Arka cam (sağ - mavi gradient)
+                ctx.fillStyle = windowGradient;
+                ctx.fillRect(carScreenX + 102, carScreenY + 10, 38, 22);
+
+                // Cam çerçeveleri (koyu gri, kalın)
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(carScreenX + 20, carScreenY + 10, 38, 22);
+                ctx.strokeRect(carScreenX + 102, carScreenY + 10, 38, 22);
+
+                // Tekerlekler (siyah daireler, gri jantlar)
+                const wheelY = carScreenY + carHeight - 8;
+                const wheelRadius = 12;
+
+                // Sol tekerlek
+                ctx.fillStyle = '#2C2C2C';
+                ctx.beginPath();
+                ctx.arc(carScreenX + 40, wheelY, wheelRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Sol jant
+                ctx.fillStyle = '#8C8C8C';
+                ctx.beginPath();
+                ctx.arc(carScreenX + 40, wheelY, wheelRadius - 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Sağ tekerlek
+                ctx.fillStyle = '#2C2C2C';
+                ctx.beginPath();
+                ctx.arc(carScreenX + 120, wheelY, wheelRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Sağ jant
+                ctx.fillStyle = '#8C8C8C';
+                ctx.beginPath();
+                ctx.arc(carScreenX + 120, wheelY, wheelRadius - 4, 0, Math.PI * 2);
+                ctx.fill();
+
                 // Araba gölgesi (zeminde)
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
                 ctx.fillRect(carScreenX, carScreenY + carHeight + 10, carWidth, 4);
@@ -8813,6 +9413,19 @@
             // Canvas'ı TAMAMEN temizle
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // TEST: returningHome sahnesini başlat (sadece ilk kez)
+            if (game.sceneState === 'returningHome' && !game.returningHomeInitialized) {
+                initializeReturningHomeScene();
+                game.returningHomeInitialized = true;
+            }
+
+            // TEST: finalScene sahnesini başlat (sadece ilk kez)
+            // Not: initializeFinalScene sprite'lar yüklenmezse kendi kendini tekrar çağırır
+            if (game.sceneState === 'finalScene' && !game.finalSceneInitialized) {
+                initializeFinalScene();
+                // finalSceneInitialized flag'i initializeFinalScene içinde set edilecek
+            }
+
             // TEST: Kapanış sahnesini başlat (sadece ilk kez)
             if (game.sceneState === 'closing' && !game.closingInitialized) {
                 initializeClosingScene();
@@ -8832,8 +9445,8 @@
                 // Update
                 // Açılış sahnesinde oyuncu hareket edemez
                 // Datça ve kapanış sahnelerinde karakterler arabadayken updatePlayer çağrılmasın
-                if (!dialog.isOpen && (game.sceneState === 'gameplay' || game.sceneState === 'onIsland' || game.sceneState === 'returningHome' || 
-                    (game.sceneState === 'datca' && !game.datcaCharactersInCar) || 
+                if (!dialog.isOpen && (game.sceneState === 'gameplay' || game.sceneState === 'onIsland' || game.sceneState === 'returningHome' || game.sceneState === 'finalScene' ||
+                    (game.sceneState === 'datca' && !game.datcaCharactersInCar) ||
                     (game.sceneState === 'closing' && !game.closingCharactersInCar))) {
                     updatePlayer();
                     // checkInteraction() artık sadece E tuşuna basıldığında çağrılıyor
@@ -8878,6 +9491,7 @@
                 updateDatcaIstanbulCar();  // Datça-Istanbul arabası hareketi
                 updateDatcaCar();  // Datça sahnesi arabası hareketi
                 updateClosingCar();  // Kapanış sahnesi arabası hareketi
+                updateFinalSceneCar();  // Final sahnesi arabası hareketi
 
                 // Datça sahnesinde kirpinin otele ulaşmasını kontrol et
                 if (game.sceneState === 'datca' && game.datcaHedgehogMovingToHotel && !game.datcaHedgehogReachedHotel) {
@@ -8964,6 +9578,9 @@
                 } else if (game.sceneState === 'returningHome') {
                     // Eve dönüş sahnesi (onIsland benzeri görsel düzen)
                     drawReturningHome();
+                } else if (game.sceneState === 'finalScene') {
+                    // Final sahnesi (returningHome benzeri ama deniz/iskele/tekne yok)
+                    drawFinalScene();
                 } else if (game.sceneState === 'istanbulDatca') {
                     // Istanbul-Datça yolculuk sahnesi
                     drawIstanbulDatca();
@@ -8997,10 +9614,15 @@
 
                 drawHUD();       // HUD en üstte (kamera ile hareket etmez)
                 drawDialog();    // Dialog en üstte olmalı
-                
+
                 // Game Over ekranı (en üstte)
                 if (game.gameOver) {
                     drawGameOver();
+                }
+
+                // Oyun Tamamlandı ekranı (en üstte)
+                if (game.gameCompleted) {
+                    drawGameCompleted();
                 }
             }
 
@@ -9013,7 +9635,7 @@
             // Koyu arka plan (yarı şeffaf siyah)
             ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             // "Game Over" yazısı (büyük ve kırmızı)
             ctx.save();
             ctx.fillStyle = '#FF0000';
@@ -9022,15 +9644,50 @@
             ctx.font = 'bold 120px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            
+
             // Yazıyı canvas ortasına çiz
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            
+
             // Gölge efekti
             ctx.strokeText('GAME OVER', centerX + 3, centerY + 3);
             ctx.fillText('GAME OVER', centerX, centerY);
-            
+
+            ctx.restore();
+        }
+
+        // Oyun Tamamlandı ekranı çizimi
+        function drawGameCompleted() {
+            // Koyu arka plan (yarı şeffaf siyah)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+
+            // "Iyi ki doğdun boncuğum!" yazısı (altın sarısı)
+            ctx.fillStyle = '#FFD700';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 4;
+            ctx.font = 'bold 60px Arial'; // 80px → 60px (daha küçük)
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2 - 60;
+
+            ctx.strokeText('Iyi ki doğdun boncuğum!', centerX + 2, centerY + 2);
+            ctx.fillText('Iyi ki doğdun boncuğum!', centerX, centerY);
+
+            // Alt mesaj
+            ctx.font = 'bold 28px Arial'; // 32px → 28px
+            ctx.fillStyle = '#FFFFFF';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+
+            const messageY = centerY + 70;
+            ctx.strokeText('Nice 30\'lara!', centerX + 1, messageY + 1);
+            ctx.fillText('Nice 30\'lara!', centerX, messageY);
+
             ctx.restore();
         }
 
