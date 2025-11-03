@@ -131,11 +131,12 @@
             box-shadow: 0 3px 10px rgba(0,0,0,0.4);
         }
 
-        /* Responsive Canvas - Tam Ekran Mobil */
+        /* Responsive Canvas - Letterbox Mode (Industry Best Practice) */
         @media (max-width: 900px) {
             body {
                 overflow: hidden;
-                background: #87CEEB;
+                /* Gökyüzü gradient - letterbox barları oyunla birleşir */
+                background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 100%);
                 margin: 0;
                 padding: 0;
             }
@@ -155,14 +156,12 @@
             }
 
             canvas {
-                width: 100vw !important;
-                height: 100vh !important;
+                /* Letterbox: Aspect ratio korunur, içerik hiç kesilmez */
+                width: 100% !important;
+                height: 100% !important;
                 max-width: 100vw !important;
                 max-height: 100vh !important;
-                object-fit: fill;
-                position: absolute;
-                top: 0;
-                left: 0;
+                object-fit: contain;
             }
 
             #instructions {
@@ -1649,14 +1648,39 @@
             const touch = e.touches[0] || e.changedTouches[0];
             if (!touch) return;
 
-            // object-fit: fill - Canvas esnetilerek tam ekranı doldurur (aspect ratio değişebilir)
-            // Basit scale hesaplaması yeterli, offset yok
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            // object-fit: contain - Letterbox mode (aspect ratio korunur)
+            const canvasWidth = canvas.width; // 800
+            const canvasHeight = canvas.height; // 600
+            const canvasAspect = canvasWidth / canvasHeight; // 4:3
 
-            // Touch koordinatlarını canvas koordinatlarına çevir
-            const mouseX = (touch.clientX - rect.left) * scaleX;
-            const mouseY = (touch.clientY - rect.top) * scaleY;
+            const displayWidth = rect.width;
+            const displayHeight = rect.height;
+            const displayAspect = displayWidth / displayHeight;
+
+            let renderWidth, renderHeight, offsetX, offsetY;
+
+            // Letterbox hesaplaması
+            if (displayAspect > canvasAspect) {
+                // Ekran daha geniş - yanlarda letterbox
+                renderHeight = displayHeight;
+                renderWidth = renderHeight * canvasAspect;
+                offsetX = (displayWidth - renderWidth) / 2;
+                offsetY = 0;
+            } else {
+                // Ekran daha dar - üst/altta letterbox
+                renderWidth = displayWidth;
+                renderHeight = renderWidth / canvasAspect;
+                offsetX = 0;
+                offsetY = (displayHeight - renderHeight) / 2;
+            }
+
+            // Touch pozisyonunu letterbox offset'i ile düzelt
+            const touchX = touch.clientX - rect.left - offsetX;
+            const touchY = touch.clientY - rect.top - offsetY;
+
+            // Canvas koordinatlarına çevir
+            const mouseX = (touchX / renderWidth) * canvasWidth;
+            const mouseY = (touchY / renderHeight) * canvasHeight;
 
             // Check start button (intro screen)
             if (game.state === 'intro' && game.startButton) {
