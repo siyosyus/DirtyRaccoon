@@ -1649,13 +1649,41 @@
             const touch = e.touches[0] || e.changedTouches[0];
             if (!touch) return;
 
-            // Canvas'ın ölçeklenmiş boyutlarını hesapla
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            // Canvas'ın görüntülenen (rendered) boyutları
+            const displayWidth = rect.width;
+            const displayHeight = rect.height;
 
-            // Touch koordinatlarını canvas koordinatlarına çevir
-            const mouseX = (touch.clientX - rect.left) * scaleX;
-            const mouseY = (touch.clientY - rect.top) * scaleY;
+            // Canvas'ın internal çözünürlüğü (800x600)
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+
+            // Aspect ratio'yu koru - object-fit: contain mantığı
+            const canvasAspect = canvasWidth / canvasHeight;
+            const displayAspect = displayWidth / displayHeight;
+
+            let renderWidth, renderHeight, offsetX, offsetY;
+
+            if (displayAspect > canvasAspect) {
+                // Display daha geniş - yanlarda boşluk var
+                renderHeight = displayHeight;
+                renderWidth = renderHeight * canvasAspect;
+                offsetX = (displayWidth - renderWidth) / 2;
+                offsetY = 0;
+            } else {
+                // Display daha dar - üstte/altta boşluk var
+                renderWidth = displayWidth;
+                renderHeight = renderWidth / canvasAspect;
+                offsetX = 0;
+                offsetY = (displayHeight - renderHeight) / 2;
+            }
+
+            // Touch pozisyonunu hesapla
+            const touchX = touch.clientX - rect.left - offsetX;
+            const touchY = touch.clientY - rect.top - offsetY;
+
+            // Canvas koordinatlarına çevir
+            const mouseX = (touchX / renderWidth) * canvasWidth;
+            const mouseY = (touchY / renderHeight) * canvasHeight;
 
             // Check start button (intro screen)
             if (game.state === 'intro' && game.startButton) {
