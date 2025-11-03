@@ -1711,16 +1711,6 @@
             const mouseX = (touchX / renderWidth) * canvasWidth;
             const mouseY = (touchY / renderHeight) * canvasHeight;
 
-            // DEBUG: Koordinatları konsola yazdır
-            console.log('Touch Debug:', {
-                raw: { x: touch.clientX, y: touch.clientY },
-                rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-                letterbox: { offsetX, offsetY, renderWidth, renderHeight },
-                adjusted: { touchX, touchY },
-                canvas: { mouseX: Math.round(mouseX), mouseY: Math.round(mouseY) },
-                canvasSize: { width: canvasWidth, height: canvasHeight }
-            });
-
             // Check start button (intro screen)
             if (game.state === 'intro' && game.startButton) {
                 const btn = game.startButton;
@@ -1787,10 +1777,30 @@
             const textGap = text2Lines.length > 0 ? 15 : 0;
             const totalTextHeight = textHeight + text2Height + textGap;
 
+            // Calculate total answer area height (same as drawDialog)
+            ctx.font = '16px Arial';
             const clickAnswerHeight = 40;
             const clickAnswerBoxWidth = dialogWidth - 100;
             const clickAnswerTextWidth = clickAnswerBoxWidth - 40;
+            let clickTotalAnswerHeight = 0;
+            dialog.answers.forEach((answer) => {
+                const answerLines = wrapText(answer, clickAnswerTextWidth, '16px Arial');
+                const answerBoxHeight = Math.max(clickAnswerHeight, answerLines.length * 22 + 16);
+                clickTotalAnswerHeight += answerBoxHeight + 10;
+            });
 
+            // Calculate dialogBoxY (same as drawDialog - dynamic centering)
+            const dialogHeight = Math.max(300, totalTextHeight + clickTotalAnswerHeight + 100);
+            const dialogBoxY = dialogY + (300 - dialogHeight) / 2;
+
+            // Calculate currentY (same as drawDialog)
+            let clickCurrentY = dialogBoxY + 50;           // Start position
+            clickCurrentY += textHeight + textGap;         // After text1
+            if (text2Lines.length > 0) {
+                clickCurrentY += text2Height + 20;         // After text2 if exists
+            }
+
+            // Now check answer positions (matches drawDialog exactly)
             let clickAnswerOffsetY = 0;
             dialog.answers.forEach((answer, index) => {
                 ctx.font = 'bold 18px Arial';
@@ -1798,7 +1808,7 @@
                 const answerBoxHeight = Math.max(clickAnswerHeight, answerTextLines.length * 22 + 10);
 
                 const answerX = dialogX + 50;
-                const answerY = dialogY + textPadding + totalTextHeight + 20 + clickAnswerOffsetY;
+                const answerY = clickCurrentY + clickAnswerOffsetY; // Use clickCurrentY instead!
                 const answerWidth = clickAnswerBoxWidth;
 
                 if (mouseX > answerX && mouseX < answerX + answerWidth &&
