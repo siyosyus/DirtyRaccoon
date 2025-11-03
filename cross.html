@@ -30,17 +30,17 @@
             position: relative;
             overflow: hidden;
             min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         #gameFrame {
             width: 800px;
             height: 600px;
             border: 0;
             background: #000;
-            transform-origin: top left;
-            position: absolute;
-            top: 0;
-            left: 50%;
-            margin-left: -400px;
+            transform-origin: center center;
+            display: block;
         }
         #controls {
             position: relative;
@@ -52,6 +52,10 @@
             padding: 10px 14px 16px;
             box-sizing: border-box;
             background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 25%, rgba(0,0,0,0.75) 100%);
+            z-index: 10;
+        }
+        #gameWrapper {
+            z-index: 1;
         }
         .pad {
             display: grid;
@@ -86,6 +90,8 @@
             right: 16px;
             color: rgba(255,255,255,0.7);
             font: 500 12px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            z-index: 20;
+            pointer-events: none;
         }
         @media (min-width: 800px) and (min-height: 480px) {
             button.ctrl { width: 92px; height: 92px; }
@@ -172,11 +178,14 @@
         // Scale iframe to fit viewport
         const fit = () => {
             const el = document.getElementById('gameFrame');
+            const wrapper = document.getElementById('gameWrapper');
+            if (!el || !wrapper) return;
+            
             const gameWidth = 800;
             const gameHeight = 600;
             const controlsHeight = Math.min(window.innerHeight * 0.28, 220);
             const availableHeight = window.innerHeight - controlsHeight;
-            const availableWidth = window.innerWidth;
+            const availableWidth = wrapper.clientWidth || window.innerWidth;
             
             // Calculate scale to fit both width and height
             const scaleX = availableWidth / gameWidth;
@@ -186,23 +195,29 @@
             el.style.transform = `scale(${scale})`;
             el.style.width = gameWidth + 'px';
             el.style.height = gameHeight + 'px';
-            el.style.marginLeft = (-gameWidth / 2) + 'px';
-            
-            // Center horizontally
-            const scaledWidth = gameWidth * scale;
-            const scaledHeight = gameHeight * scale;
-            el.style.top = ((availableHeight - scaledHeight) / 2) + 'px';
         };
         window.addEventListener('resize', fit);
         window.addEventListener('orientationchange', () => {
             setTimeout(fit, 100); // Wait for orientation change to complete
         });
-        fit();
-
-        // Attempt to focus game to ensure it receives key events
+        
+        // Ensure iframe loads and is visible
         frame.addEventListener('load', () => {
-            try { frame.contentWindow.focus(); } catch (_) {}
+            try { 
+                frame.contentWindow.focus(); 
+                // Re-fit after load to ensure proper scaling
+                setTimeout(fit, 50);
+            } catch (e) {
+                console.warn('Could not focus iframe:', e);
+            }
         });
+        
+        // Initial fit after DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fit);
+        } else {
+            fit();
+        }
     })();
     </script>
 </body>
