@@ -21,14 +21,26 @@
         #stage {
             position: fixed;
             inset: 0;
-            display: grid;
-            grid-template-rows: 1fr auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #gameWrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
         }
         #gameFrame {
-            width: 100vw;
-            height: 100%;
+            width: 800px;
+            height: 600px;
             border: 0;
             background: #000;
+            transform-origin: top left;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            margin-left: -400px;
         }
         #controls {
             position: relative;
@@ -84,7 +96,9 @@
 </head>
 <body>
     <div id="stage">
-        <iframe id="gameFrame" src="index.html" allow="gamepad *"></iframe>
+        <div id="gameWrapper">
+            <iframe id="gameFrame" src="index.html" allow="gamepad *"></iframe>
+        </div>
         <div id="controls">
             <div class="pad" aria-label="movement pad">
                 <div class="row">
@@ -155,13 +169,34 @@
 
         document.querySelectorAll('button.ctrl').forEach(bindButton);
 
-        // Resize handling (ensure iframe always fills viewport)
+        // Scale iframe to fit viewport
         const fit = () => {
             const el = document.getElementById('gameFrame');
-            el.style.width = window.innerWidth + 'px';
-            el.style.height = Math.round(window.innerHeight * 0.72) + 'px';
+            const gameWidth = 800;
+            const gameHeight = 600;
+            const controlsHeight = Math.min(window.innerHeight * 0.28, 220);
+            const availableHeight = window.innerHeight - controlsHeight;
+            const availableWidth = window.innerWidth;
+            
+            // Calculate scale to fit both width and height
+            const scaleX = availableWidth / gameWidth;
+            const scaleY = availableHeight / gameHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
+            
+            el.style.transform = `scale(${scale})`;
+            el.style.width = gameWidth + 'px';
+            el.style.height = gameHeight + 'px';
+            el.style.marginLeft = (-gameWidth / 2) + 'px';
+            
+            // Center horizontally
+            const scaledWidth = gameWidth * scale;
+            const scaledHeight = gameHeight * scale;
+            el.style.top = ((availableHeight - scaledHeight) / 2) + 'px';
         };
         window.addEventListener('resize', fit);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(fit, 100); // Wait for orientation change to complete
+        });
         fit();
 
         // Attempt to focus game to ensure it receives key events
