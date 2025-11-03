@@ -893,7 +893,7 @@
             dialog.isOpen = true;
             dialog.isHedgehogDialog = false;
             dialog.currentObject = 'islandDock'; // Ada iskelesi diyaloğu için identifier
-            dialog.text = 'Ilk tatilimizin sonuna gelmiş bulunuyoruz. Fakat sen de çok iyi bilirsin ki bazı tatiller vardır ve yapılırlar. Bu ilk tatilimizde ve yeri hep ayrı kalacak. Şimdi seni başka başka anılara götürme zamanı. Ama önce eve dönüp arabayı almamız lazım.';
+            dialog.text = 'Ilk tatilimizin sonuna gelmiş bulunuyoruz. Fakat sen de çok iyi bilirsin ki bazı tatiller vardır ve yapılırlar. Bu ilk tatilimizdi ve yeri hep ayrı kalacak. Şimdi seni başka başka anılara götürme zamanı. Ama önce eve dönüp arabayı almamız lazım.';
             dialog.text2 = '';
             dialog.answers = ['Hadi gidelim!!'];
         }
@@ -913,8 +913,8 @@
             dialog.isOpen = true;
             dialog.isHedgehogDialog = false;
             dialog.text = '15 Aralık 2023';
-            dialog.text2 = 'Hosgeldiniz.Ne sipariş vermek istersiniz?';
-            dialog.answers = ['Bir Orta boy Latte bir tane de filtre kahve alabilir miyiz?'];
+            dialog.text2 = 'Hosgeldiniz. Ne sipariş vermek istersiniz?';
+            dialog.answers = ['Bir orta boy Latte bir tane de filtre kahve alabilir miyiz?'];
             dialog.currentObject = 'caffeNero'; // Caffè Nero diyaloğu için identifier
         }
 
@@ -922,7 +922,7 @@
         function openDockDialog() {
             dialog.isOpen = true;
             dialog.isHedgehogDialog = false;
-            dialog.text = 'Büyükada ilk tatilimizi yapmaya gidiyoruz. Çok ilginç değil mi? Ilk defa bugün görüşüyoruz ama sanki yıllardır birbirimizi tanıyor gibiyiz.';
+            dialog.text = 'Ilk tatilimizi yapmaya gidiyoruz. Çok ilginç değil mi? Ilk defa bugün görüşüyoruz ama sanki yıllardır birbirimizi tanıyor gibiyiz.';
             dialog.text2 = '';
             dialog.answers = ['Evet, gerçekten! 💕'];
             dialog.currentObject = 'dock'; // İskele diyaloğu için identifier
@@ -2064,6 +2064,14 @@
                 }
                 
                 // İskeleye doğru hareket et
+                // Eğer bekliyorsa ve rakun hareket ediyorsa, tekrar hareket et
+                const playerIsStationary = Math.abs(player.velocityX) < 0.5;
+                if (hedgehog.waitingForPlayer && !playerIsStationary) {
+                    // Rakun ilerledi, kirpi tekrar hareket edebilir
+                    hedgehog.waitingForPlayer = false;
+                    hedgehog.isMoving = true;
+                }
+                
                 if (hedgehog.isMoving && hedgehog.targetX !== null) {
                     const distance = Math.abs(hedgehog.x - hedgehog.targetX);
                     
@@ -2604,51 +2612,82 @@
             }
 
             // Datça sahnesi: Kirpi targetX'e doğru hareket eder (otele gitme / son eve gitme)
-            if (game.sceneState === 'datca' && hedgehog.targetX !== null && hedgehog.isMoving) {
-                // Ekran kontrolü - kirpi ekrandan çıkmamalı
-                const hedgehogScreenX = hedgehog.x - camera.x;
-                const willBeOffScreen = hedgehogScreenX < 0 || hedgehogScreenX > canvas.width - hedgehog.width;
-
-                // Eğer kirpi ekrandan çıkacaksa veya rakun duruyorsa
+            if (game.sceneState === 'datca' && hedgehog.targetX !== null) {
                 const playerIsStationary = Math.abs(player.velocityX) < 0.5;
-
-                if (willBeOffScreen || (hedgehogScreenX > canvas.width * 0.75 && playerIsStationary)) {
-                    // Kirpi ekranın %70'inde beklemeye geçsin
-                    const targetScreenX = canvas.width * 0.7;
-                    const targetWorldX = camera.x + targetScreenX;
-
-                    if (Math.abs(hedgehog.x - targetWorldX) > 10) {
-                        // Ekran hedefine git
-                        if (hedgehog.x < targetWorldX) {
-                            hedgehog.x += hedgehog.speed;
-                        } else {
-                            hedgehog.x -= hedgehog.speed;
-                        }
-                    } else {
-                        // Ekran pozisyonunda dur, rakun hareket edene kadar bekle
-                        hedgehog.isMoving = false;
-                        hedgehog.waitingForPlayer = true;
-                    }
-                } else {
-                    // Rakun hareket ediyorsa ve kirpi ekranda görünürse, hedefe git
-                    const distance = Math.abs(hedgehog.x - hedgehog.targetX);
-
-                    if (distance > 5) {
-                        if (hedgehog.x < hedgehog.targetX) {
-                            hedgehog.x += hedgehog.speed;
-                        } else {
-                            hedgehog.x -= hedgehog.speed;
-                        }
-                    } else {
-                        // Hedefe ulaştı (game loop'ta kontrol edilecek)
-                        hedgehog.x = hedgehog.targetX;
-                    }
-                }
-
-                // Eğer rakun hareket ediyorsa ve kirpi bekliyorduysa, tekrar hareket et
+                
+                // Eğer bekliyorsa ve rakun hareket ediyorsa, tekrar hareket et
                 if (hedgehog.waitingForPlayer && !playerIsStationary) {
                     hedgehog.waitingForPlayer = false;
                     hedgehog.isMoving = true;
+                }
+                
+                if (hedgehog.isMoving) {
+                    // Ekran kontrolü - kirpi ekrandan çıkmamalı
+                    const hedgehogScreenX = hedgehog.x - camera.x;
+                    const nextX = hedgehog.x < hedgehog.targetX ? hedgehog.x + hedgehog.speed : hedgehog.x - hedgehog.speed;
+                    const nextScreenX = nextX - camera.x;
+                    const willBeOffScreen = nextScreenX < 0 || nextScreenX > canvas.width - hedgehog.width;
+
+                    // Eğer bir sonraki adımda ekrandan çıkacaksa ve rakun duruyorsa, dur
+                    if (willBeOffScreen && playerIsStationary) {
+                        // Kirpi ekranın %70'inde beklemeye geçsin
+                        const targetScreenX = canvas.width * 0.7;
+                        const targetWorldX = camera.x + targetScreenX;
+
+                        if (Math.abs(hedgehog.x - targetWorldX) > 10) {
+                            // Ekran hedefine git
+                            if (hedgehog.x < targetWorldX) {
+                                hedgehog.x += hedgehog.speed;
+                            } else {
+                                hedgehog.x -= hedgehog.speed;
+                            }
+                        } else {
+                            // Ekran pozisyonunda dur, rakun hareket edene kadar bekle
+                            hedgehog.isMoving = false;
+                            hedgehog.waitingForPlayer = true;
+                        }
+                    } else if (willBeOffScreen && !playerIsStationary) {
+                        // Rakun hareket ediyor ama kirpi hala ekrandan çıkacak - beklemeye geç
+                        const targetScreenX = canvas.width * 0.7;
+                        const targetWorldX = camera.x + targetScreenX;
+                        
+                        if (Math.abs(hedgehog.x - targetWorldX) > 10) {
+                            if (hedgehog.x < targetWorldX) {
+                                hedgehog.x += hedgehog.speed;
+                            } else {
+                                hedgehog.x -= hedgehog.speed;
+                            }
+                        } else {
+                            hedgehog.isMoving = false;
+                            hedgehog.waitingForPlayer = true;
+                        }
+                    } else {
+                        // Rakun hareket ediyorsa ve kirpi ekranda görünürse, hedefe git
+                        hedgehog.waitingForPlayer = false; // Hareket ediyor, bekleme durumunu iptal et
+                        const distance = Math.abs(hedgehog.x - hedgehog.targetX);
+
+                        if (distance > 5) {
+                            if (hedgehog.x < hedgehog.targetX) {
+                                hedgehog.x += hedgehog.speed;
+                            } else {
+                                hedgehog.x -= hedgehog.speed;
+                            }
+                        } else {
+                            // Hedefe ulaştı (game loop'ta kontrol edilecek)
+                            hedgehog.x = hedgehog.targetX;
+                            hedgehog.isMoving = false;
+                        }
+                    }
+                } else if (hedgehog.waitingForPlayer) {
+                    // Bekliyor - ekran pozisyonunda kal, ama rakun hareket ettiyse yukarıda kontrol edildi
+                    // Burada sadece ekran pozisyonunu koru
+                    const targetScreenX = canvas.width * 0.7;
+                    const targetWorldX = camera.x + targetScreenX;
+                    
+                    // Kamera hareket ettiyse kirpi pozisyonunu güncelle (sadece ekran pozisyonunu koru)
+                    if (Math.abs((hedgehog.x - camera.x) - targetScreenX) > 5) {
+                        hedgehog.x = targetWorldX;
+                    }
                 }
             }
         }

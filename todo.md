@@ -127,7 +127,7 @@
 
 ## 🔄 Devam Eden / İyileştirme Gereken Özellikler
 
-- [ ] Kirpi'nin ekran pozisyonuna gelme mantığının test edilmesi ve iyileştirilmesi
+- [x] Kirpi'nin ekran pozisyonuna gelme mantığının test edilmesi ve iyileştirilmesi
 - [ ] Diyalog baloncuğunun daha smooth görünmesi için animasyon eklenmesi
 - [ ] Bina sprite'larının yüklenme durumunun daha iyi yönetilmesi
 
@@ -147,6 +147,10 @@
 - Rakun durduğunda kirpi ekranın %70'lik pozisyonuna gelip duruyor
 - Rakun hareket ettiğinde kirpi Caffè Nero'ya gitmeye devam ediyor
 - Ekran hedefi her frame güncelleniyor (kamera hareket edebilir)
+
+#### Yeni Düzeltmeler (onIsland ve Datça)
+- onIsland: Otel diyaloğu kapandıktan sonra kirpinin iskeleye doğru hareketi artık rakun ilerledikçe devam ediyor (bekleme durumundan çıkış eklendi)
+- Datça: Kirpi ekrandan çıkmamak için durduğunda yaşanan titreme/flickering giderildi (nextScreenX kontrolü ve bekleme sırasında pozisyon sabitleme)
 
 ### Hız Ayarı
 - Kirpi hızı 2 piksel/frame → 3.75 piksel/frame olarak güncellendi
