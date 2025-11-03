@@ -49,40 +49,68 @@
             border-radius: 5px;
         }
 
-        /* Mobil Kontrol Butonları */
-        #mobileControls {
+        /* Sanal Joystick - Dokunmatik Kontrol */
+        #virtualJoystick {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 140px;
-            background: rgba(0,0,0,0.8);
-            display: none; /* Varsayılan gizli, JS ile mobilde gösterilecek */
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
+            bottom: 30px;
+            left: 30px;
+            width: 150px;
+            height: 150px;
+            display: none;
             z-index: 10000;
-            border-top: 2px solid rgba(255,255,255,0.2);
         }
 
-        #mobileControls.show {
-            display: flex;
+        #virtualJoystick.show {
+            display: block;
         }
 
-        .control-group {
-            display: flex;
+        .joystick-base {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 3px solid rgba(255,255,255,0.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .joystick-stick {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(100,150,255,0.5);
+            border: 3px solid rgba(255,255,255,0.7);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease-out;
+        }
+
+        /* Minimal Aksiyon Butonları */
+        #mobileActions {
+            position: fixed;
+            bottom: 40px;
+            right: 30px;
+            display: none;
+            flex-direction: column;
             gap: 15px;
-            align-items: center;
+            z-index: 10000;
         }
 
-        .mobile-btn {
+        #mobileActions.show {
+            display: flex;
+        }
+
+        .action-btn {
             width: 70px;
             height: 70px;
             border-radius: 50%;
             border: 3px solid rgba(255,255,255,0.6);
-            background: rgba(100,100,255,0.3);
+            background: rgba(255,100,100,0.4);
             color: white;
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
             display: flex;
             justify-content: center;
@@ -90,52 +118,23 @@
             user-select: none;
             -webkit-user-select: none;
             touch-action: none;
-            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             transition: all 0.1s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        .mobile-btn:active {
-            background: rgba(150,150,255,0.6);
-            transform: scale(0.92);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        .action-btn:active {
+            background: rgba(255,150,150,0.7);
+            transform: scale(0.9);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
-        .dpad {
-            display: grid;
-            grid-template-columns: repeat(3, 60px);
-            grid-template-rows: repeat(3, 60px);
-            gap: 8px;
+        .action-btn.interact {
+            background: rgba(100,255,100,0.4);
         }
 
-        .dpad-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 10px;
-            border: 3px solid rgba(255,255,255,0.6);
-            background: rgba(100,100,255,0.3);
-            color: white;
-            font-size: 24px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        .action-btn.interact:active {
+            background: rgba(150,255,150,0.7);
         }
-
-        .dpad-btn:active {
-            background: rgba(150,150,255,0.6);
-            transform: scale(0.92);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-
-        .dpad .up { grid-column: 2; grid-row: 1; }
-        .dpad .left { grid-column: 1; grid-row: 2; }
-        .dpad .right { grid-column: 3; grid-row: 2; }
-        .dpad .down { grid-column: 2; grid-row: 3; }
 
         /* Responsive Canvas */
         @media (max-width: 900px) {
@@ -157,7 +156,7 @@
                 width: 100% !important;
                 max-width: 100vw !important;
                 height: auto !important;
-                max-height: calc(100vh - 140px) !important;
+                max-height: 100vh !important;
             }
 
             #instructions {
@@ -176,22 +175,16 @@
         </div>
     </div>
 
-    <!-- Mobil Kontrol Butonları -->
-    <div id="mobileControls">
-        <div class="control-group">
-            <div class="dpad">
-                <div class="dpad-btn up" data-key="w">▲</div>
-                <div class="dpad-btn left" data-key="a">◄</div>
-                <div class="dpad-btn right" data-key="d">►</div>
-                <div class="dpad-btn down" data-key="s">▼</div>
-            </div>
-        </div>
-        <div class="control-group">
-            <div class="mobile-btn jump-btn" data-key=" ">
-                <span style="font-size: 20px;">⬆</span>
-            </div>
-            <div class="mobile-btn interact-btn" data-key="e">E</div>
-        </div>
+    <!-- Sanal Joystick - Dokunmatik Kontrol -->
+    <div id="virtualJoystick">
+        <div class="joystick-base"></div>
+        <div class="joystick-stick" id="joystickStick"></div>
+    </div>
+
+    <!-- Minimal Aksiyon Butonları -->
+    <div id="mobileActions">
+        <div class="action-btn" id="jumpBtn" data-key=" ">↑</div>
+        <div class="action-btn interact" id="interactBtn" data-key="e">E</div>
     </div>
 
     <script>
@@ -208,10 +201,21 @@
                    (window.innerWidth <= 900);
         }
 
+        // ==================== SANAL JOYSTİCK SİSTEMİ ====================
+        const keys = {};
+        let joystickActive = false;
+        let joystickStartPos = { x: 0, y: 0 };
+        let joystickCurrentPos = { x: 0, y: 0 };
+
         // Mobil kontrolleri göster/gizle
-        const mobileControls = document.getElementById('mobileControls');
+        const virtualJoystick = document.getElementById('virtualJoystick');
+        const mobileActions = document.getElementById('mobileActions');
+        const joystickStick = document.getElementById('joystickStick');
+
         if (isMobileDevice()) {
-            mobileControls.classList.add('show');
+            virtualJoystick.classList.add('show');
+            mobileActions.classList.add('show');
+
             // Scroll'u engelle
             document.body.style.overflow = 'hidden';
             document.body.style.position = 'fixed';
@@ -219,10 +223,75 @@
             document.body.style.height = '100%';
         }
 
-        // Touch kontrol handler'ları
-        const keys = {};
+        // Sanal Joystick Touch Handler
+        function handleJoystickTouch(e) {
+            e.preventDefault();
 
-        function handleTouchStart(e) {
+            const touch = e.touches[0];
+            if (!touch) return;
+
+            const rect = virtualJoystick.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            // Touch pozisyonunu merkeze göre hesapla
+            let deltaX = touch.clientX - centerX;
+            let deltaY = touch.clientY - centerY;
+
+            // Maksimum yarıçapı sınırla (joystick tabanının yarıçapı)
+            const maxRadius = 40;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            if (distance > maxRadius) {
+                deltaX = (deltaX / distance) * maxRadius;
+                deltaY = (deltaY / distance) * maxRadius;
+            }
+
+            // Joystick stick'i hareket ettir
+            joystickStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+
+            // Tuş basımlarını simüle et (eşik değeri ile)
+            const threshold = 15;
+
+            keys['w'] = deltaY < -threshold;
+            keys['s'] = deltaY > threshold;
+            keys['a'] = deltaX < -threshold;
+            keys['d'] = deltaX > threshold;
+        }
+
+        function resetJoystick() {
+            joystickStick.style.transform = 'translate(-50%, -50%)';
+            keys['w'] = false;
+            keys['s'] = false;
+            keys['a'] = false;
+            keys['d'] = false;
+        }
+
+        // Joystick event listener'ları
+        virtualJoystick.addEventListener('touchstart', (e) => {
+            joystickActive = true;
+            handleJoystickTouch(e);
+        }, { passive: false });
+
+        virtualJoystick.addEventListener('touchmove', (e) => {
+            if (joystickActive) {
+                handleJoystickTouch(e);
+            }
+        }, { passive: false });
+
+        virtualJoystick.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            joystickActive = false;
+            resetJoystick();
+        }, { passive: false });
+
+        virtualJoystick.addEventListener('touchcancel', (e) => {
+            joystickActive = false;
+            resetJoystick();
+        }, { passive: false });
+
+        // Aksiyon butonları (Zıplama ve Etkileşim)
+        function handleActionTouchStart(e) {
             e.preventDefault();
             e.stopPropagation();
             const key = e.currentTarget.getAttribute('data-key');
@@ -237,7 +306,7 @@
             }
         }
 
-        function handleTouchEnd(e) {
+        function handleActionTouchEnd(e) {
             e.preventDefault();
             e.stopPropagation();
             const key = e.currentTarget.getAttribute('data-key');
@@ -246,23 +315,22 @@
             }
         }
 
-        // Mobil butonlara event listener ekle
-        const mobileButtons = document.querySelectorAll('.mobile-btn, .dpad-btn');
-        mobileButtons.forEach(btn => {
-            // Touch events
-            btn.addEventListener('touchstart', handleTouchStart, { passive: false });
-            btn.addEventListener('touchend', handleTouchEnd, { passive: false });
-            btn.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+        // Aksiyon butonlarına event listener ekle
+        const actionButtons = document.querySelectorAll('.action-btn');
+        actionButtons.forEach(btn => {
+            btn.addEventListener('touchstart', handleActionTouchStart, { passive: false });
+            btn.addEventListener('touchend', handleActionTouchEnd, { passive: false });
+            btn.addEventListener('touchcancel', handleActionTouchEnd, { passive: false });
 
-            // Mouse events (test için)
-            btn.addEventListener('mousedown', handleTouchStart);
-            btn.addEventListener('mouseup', handleTouchEnd);
-            btn.addEventListener('mouseleave', handleTouchEnd);
+            // Mouse desteği (test için)
+            btn.addEventListener('mousedown', handleActionTouchStart);
+            btn.addEventListener('mouseup', handleActionTouchEnd);
+            btn.addEventListener('mouseleave', handleActionTouchEnd);
         });
 
         // Scroll ve zoom'u engelle
         document.addEventListener('touchmove', (e) => {
-            if (e.target.closest('#mobileControls')) {
+            if (e.target.closest('#virtualJoystick') || e.target.closest('#mobileActions')) {
                 e.preventDefault();
             }
         }, { passive: false });
@@ -271,7 +339,7 @@
             e.preventDefault();
         });
 
-        // ==================== MOBİL KONTROL SİSTEMİ SONU ====================
+        // ==================== SANAL JOYSTİCK SİSTEMİ SONU ====================
 
         // Load sprites
         const sprites = {
