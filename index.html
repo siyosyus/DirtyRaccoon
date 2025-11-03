@@ -159,7 +159,7 @@
                 height: 100vh !important;
                 max-width: 100vw !important;
                 max-height: 100vh !important;
-                object-fit: cover;
+                object-fit: fill;
                 position: absolute;
                 top: 0;
                 left: 0;
@@ -1649,41 +1649,14 @@
             const touch = e.touches[0] || e.changedTouches[0];
             if (!touch) return;
 
-            // Canvas'ın görüntülenen (rendered) boyutları
-            const displayWidth = rect.width;
-            const displayHeight = rect.height;
+            // object-fit: fill - Canvas esnetilerek tam ekranı doldurur (aspect ratio değişebilir)
+            // Basit scale hesaplaması yeterli, offset yok
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
 
-            // Canvas'ın internal çözünürlüğü (800x600)
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-
-            // object-fit: cover mantığı - ekranı tamamen doldur
-            const canvasAspect = canvasWidth / canvasHeight;
-            const displayAspect = displayWidth / displayHeight;
-
-            let renderWidth, renderHeight, offsetX, offsetY;
-
-            if (displayAspect > canvasAspect) {
-                // Display daha geniş - canvas yatay olarak doldurur, üst/alt kesilir
-                renderWidth = displayWidth;
-                renderHeight = renderWidth / canvasAspect;
-                offsetX = 0;
-                offsetY = (displayHeight - renderHeight) / 2;
-            } else {
-                // Display daha dar - canvas dikey olarak doldurur, sol/sağ kesilir
-                renderHeight = displayHeight;
-                renderWidth = renderHeight * canvasAspect;
-                offsetX = (displayWidth - renderWidth) / 2;
-                offsetY = 0;
-            }
-
-            // Touch pozisyonunu hesapla
-            const touchX = touch.clientX - rect.left - offsetX;
-            const touchY = touch.clientY - rect.top - offsetY;
-
-            // Canvas koordinatlarına çevir
-            const mouseX = (touchX / renderWidth) * canvasWidth;
-            const mouseY = (touchY / renderHeight) * canvasHeight;
+            // Touch koordinatlarını canvas koordinatlarına çevir
+            const mouseX = (touch.clientX - rect.left) * scaleX;
+            const mouseY = (touch.clientY - rect.top) * scaleY;
 
             // Check start button (intro screen)
             if (game.state === 'intro' && game.startButton) {
