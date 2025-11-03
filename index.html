@@ -610,7 +610,7 @@
             gravity: 0.6,
             friction: 0.8,
             mapWidth: 5500,  // Çok geniş harita (15 soru için)
-            state: 'playing',  // 'intro', 'verification', 'playing', 'finished' - TEST: 'playing' olarak başlat
+            state: 'intro',  // 'intro', 'verification', 'playing', 'finished' - Ana ekrandan başla
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
             sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'finalScene', 'istanbulDatca', 'datca', 'datcaIstanbul', 'closing' - Normal akış
@@ -7930,10 +7930,10 @@
                 // Araba ekrandan çıktı mı kontrol et
                 const carScreenX = carX - camera.x;
                 if (carScreenX > canvas.width + 100) {
-                    // Araba ekrandan çıktı, final sahneye geç!
+                    // Araba ekrandan çıktı, Istanbul-Datça yolculuğuna geç!
                     game.carMoving = false;
-                    game.sceneState = 'finalScene';
-                    // Final sahne başlatılacak (game loop'ta otomatik)
+                    game.sceneState = 'istanbulDatca';
+                    initializeIstanbulDatcaScene();
                 }
             }
         }
@@ -8230,9 +8230,9 @@
             if (roadTripCar.routeProgress >= 1) {
                 roadTripCar.routeProgress = 1;
                 roadTripCar.isMoving = false;
-                // Istanbul'a ulaşıldı, kapanış sahnesine geç
-                game.sceneState = 'closing';
-                initializeClosingScene();
+                // Istanbul'a ulaşıldı, final sahnesine geç
+                game.sceneState = 'finalScene';
+                // finalScene initialize edilecek (game loop'ta otomatik)
                 return;
             }
             
