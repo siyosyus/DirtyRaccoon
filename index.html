@@ -613,7 +613,7 @@
             state: 'intro',  // 'intro', 'verification', 'playing', 'finished'
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
-            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'istanbulDatca', 'datca', 'datcaIstanbul'
+            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'istanbulDatca', 'datca', 'datcaIstanbul', 'closing'
             openingDialogShown: false,  // Açılış dialogu gösterildi mi?
             caffeNeroDialogShown: false,  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
             dockDialogShown: false,  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
@@ -5643,6 +5643,11 @@
             camera.y = 0;
         }
         
+        // Kapanış sahnesi başlatma
+        function initializeClosingScene() {
+            // Boş sahne - sonra doldurulacak
+        }
+
         // Datça-Istanbul yolculuk sahnesi başlatma
         function initializeDatcaIstanbulScene() {
             roadTripCar.routeProgress = 0;
@@ -7690,8 +7695,9 @@
             if (roadTripCar.routeProgress >= 1) {
                 roadTripCar.routeProgress = 1;
                 roadTripCar.isMoving = false;
-                // Istanbul'a ulaşıldı, burada sahne bitiyor (veya başka bir sahneye geçilebilir)
-                // Şimdilik burada durabilir, gelecekte başka bir sahneye geçiş eklenebilir
+                // Istanbul'a ulaşıldı, kapanış sahnesine geç
+                game.sceneState = 'closing';
+                initializeClosingScene();
                 return;
             }
             
@@ -7767,6 +7773,14 @@
             
             // Diğer sahnelerde tekne hareket etmez
             return;
+        }
+
+        // Kapanış sahnesi çizimi
+        function drawClosing() {
+            // Boş sahne - sonra doldurulacak
+            // Şimdilik siyah arka plan
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
         // Tekne çizme
@@ -8622,6 +8636,9 @@
                     // Datça sahnesi (onIsland benzeri)
                     drawDatca();
                     drawDatcaCar();  // Araba çiz (evlerden sonra, karakterlerden önce)
+                } else if (game.sceneState === 'closing') {
+                    // Kapanış sahnesi
+                    drawClosing();
                 } else {
                     // Gameplay: Normal oyun ekranı
                     // Arka plan (gökyüzü gradient - daha zengin)
