@@ -42,6 +42,30 @@
             transform-origin: center center;
             display: block;
         }
+        #errorMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 90%;
+            z-index: 100;
+            display: none;
+        }
+        #errorMessage.show {
+            display: block;
+        }
+        #errorMessage a {
+            color: #4CAF50;
+            text-decoration: underline;
+            display: block;
+            margin-top: 15px;
+            font-size: 18px;
+        }
         #controls {
             position: relative;
             height: 28vh;
@@ -104,6 +128,11 @@
     <div id="stage">
         <div id="gameWrapper">
             <iframe id="gameFrame" src="index.html" allow="gamepad *"></iframe>
+            <div id="errorMessage">
+                <p>Oyun yüklenemedi.</p>
+                <p>Lütfen dosyayı tarayıcıda açın veya web sunucusundan çalıştırın.</p>
+                <a href="index.html" target="_top">Oyunu Doğrudan Aç</a>
+            </div>
         </div>
         <div id="controls">
             <div class="pad" aria-label="movement pad">
@@ -201,16 +230,57 @@
             setTimeout(fit, 100); // Wait for orientation change to complete
         });
         
-        // Ensure iframe loads and is visible
-        frame.addEventListener('load', () => {
-            try { 
-                frame.contentWindow.focus(); 
-                // Re-fit after load to ensure proper scaling
-                setTimeout(fit, 50);
+        // Check if iframe loaded successfully
+        const errorMsg = document.getElementById('errorMessage');
+        let loadTimeout;
+        let errorDetected = false;
+        
+        const checkLoad = () => {
+            try {
+                const iframeWindow = frame.contentWindow;
+                if (iframeWindow && iframeWindow.document && iframeWindow.document.readyState === 'complete') {
+                    clearTimeout(loadTimeout);
+                    errorMsg.classList.remove('show');
+                    iframeWindow.focus();
+                    setTimeout(fit, 50);
+                }
             } catch (e) {
-                console.warn('Could not focus iframe:', e);
+                // Cross-origin or access denied
+                if (!errorDetected) {
+                    errorDetected = true;
+                    setTimeout(() => {
+                        // Check if iframe actually has content
+                        try {
+                            const hasContent = frame.contentWindow.document.body.children.length > 0;
+                            if (!hasContent) {
+                                errorMsg.classList.add('show');
+                            }
+                        } catch {
+                            // Can't access - might be cross-origin, assume it loaded
+                            // Don't show error for cross-origin cases
+                        }
+                    }, 2000);
+                }
             }
+        };
+        
+        frame.addEventListener('load', () => {
+            setTimeout(checkLoad, 100);
         });
+        
+        // Timeout fallback - if not loaded in 5 seconds, show error
+        loadTimeout = setTimeout(() => {
+            try {
+                const iframeWindow = frame.contentWindow;
+                const hasContent = iframeWindow && iframeWindow.document && iframeWindow.document.body && iframeWindow.document.body.innerHTML.trim().length > 100;
+                if (!hasContent) {
+                    errorMsg.classList.add('show');
+                }
+            } catch (e) {
+                // Can't check - might be okay (cross-origin), don't show error
+                console.log('Cannot verify iframe load status (may be cross-origin)');
+            }
+        }, 5000);
         
         // Initial fit after DOM is ready
         if (document.readyState === 'loading') {
