@@ -159,7 +159,7 @@
                 height: 100vh !important;
                 max-width: 100vw !important;
                 max-height: 100vh !important;
-                object-fit: contain;
+                object-fit: cover;
                 position: absolute;
                 top: 0;
                 left: 0;
@@ -1657,24 +1657,24 @@
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
 
-            // Aspect ratio'yu koru - object-fit: contain mantığı
+            // object-fit: cover mantığı - ekranı tamamen doldur
             const canvasAspect = canvasWidth / canvasHeight;
             const displayAspect = displayWidth / displayHeight;
 
             let renderWidth, renderHeight, offsetX, offsetY;
 
             if (displayAspect > canvasAspect) {
-                // Display daha geniş - yanlarda boşluk var
-                renderHeight = displayHeight;
-                renderWidth = renderHeight * canvasAspect;
-                offsetX = (displayWidth - renderWidth) / 2;
-                offsetY = 0;
-            } else {
-                // Display daha dar - üstte/altta boşluk var
+                // Display daha geniş - canvas yatay olarak doldurur, üst/alt kesilir
                 renderWidth = displayWidth;
                 renderHeight = renderWidth / canvasAspect;
                 offsetX = 0;
                 offsetY = (displayHeight - renderHeight) / 2;
+            } else {
+                // Display daha dar - canvas dikey olarak doldurur, sol/sağ kesilir
+                renderHeight = displayHeight;
+                renderWidth = renderHeight * canvasAspect;
+                offsetX = (displayWidth - renderWidth) / 2;
+                offsetY = 0;
             }
 
             // Touch pozisyonunu hesapla
