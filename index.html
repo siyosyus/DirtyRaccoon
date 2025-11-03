@@ -19,6 +19,8 @@
             align-items: center;
             min-height: 100vh;
             font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
         }
 
         #gameContainer {
@@ -26,6 +28,9 @@
             border-radius: 10px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         canvas {
@@ -88,29 +93,27 @@
             transition: all 0.1s ease-out;
         }
 
-        /* Minimal Aksiyon Butonları */
+        /* Etkileşim Butonu */
         #mobileActions {
             position: fixed;
             bottom: 40px;
             right: 30px;
             display: none;
-            flex-direction: column;
-            gap: 15px;
             z-index: 10000;
         }
 
         #mobileActions.show {
-            display: flex;
+            display: block;
         }
 
         .action-btn {
-            width: 70px;
-            height: 70px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.6);
-            background: rgba(255,100,100,0.4);
+            border: 4px solid rgba(255,255,255,0.7);
+            background: rgba(100,255,100,0.5);
             color: white;
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
             display: flex;
             justify-content: center;
@@ -118,45 +121,48 @@
             user-select: none;
             -webkit-user-select: none;
             touch-action: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
             transition: all 0.1s;
         }
 
         .action-btn:active {
-            background: rgba(255,150,150,0.7);
+            background: rgba(150,255,150,0.8);
             transform: scale(0.9);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.4);
         }
 
-        .action-btn.interact {
-            background: rgba(100,255,100,0.4);
-        }
-
-        .action-btn.interact:active {
-            background: rgba(150,255,150,0.7);
-        }
-
-        /* Responsive Canvas */
+        /* Responsive Canvas - Tam Ekran Mobil */
         @media (max-width: 900px) {
             body {
                 overflow: hidden;
+                background: #87CEEB;
+                margin: 0;
+                padding: 0;
             }
 
             #gameContainer {
                 border-radius: 0;
                 box-shadow: none;
+                background: transparent;
                 width: 100vw;
                 height: 100vh;
+                position: fixed;
+                top: 0;
+                left: 0;
                 display: flex;
-                flex-direction: column;
                 justify-content: center;
+                align-items: center;
             }
 
             canvas {
-                width: 100% !important;
+                width: 100vw !important;
+                height: 100vh !important;
                 max-width: 100vw !important;
-                height: auto !important;
                 max-height: 100vh !important;
+                object-fit: contain;
+                position: absolute;
+                top: 0;
+                left: 0;
             }
 
             #instructions {
@@ -181,9 +187,8 @@
         <div class="joystick-stick" id="joystickStick"></div>
     </div>
 
-    <!-- Minimal Aksiyon Butonları -->
+    <!-- Etkileşim Butonu -->
     <div id="mobileActions">
-        <div class="action-btn" id="jumpBtn" data-key=" ">↑</div>
         <div class="action-btn interact" id="interactBtn" data-key="e">E</div>
     </div>
 
