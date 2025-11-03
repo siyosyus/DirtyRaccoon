@@ -610,10 +610,10 @@
             gravity: 0.6,
             friction: 0.8,
             mapWidth: 5500,  // Çok geniş harita (15 soru için)
-            state: 'intro',  // 'intro', 'verification', 'playing', 'finished'
+            state: 'playing',  // 'intro', 'verification', 'playing', 'finished' - TEST: 'playing' olarak başlat
             startButton: null,  // Başlat butonu referansı
             backButton: null,   // Ana menü butonu referansı
-            sceneState: 'opening',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'istanbulDatca', 'datca', 'datcaIstanbul', 'closing'
+            sceneState: 'closing',  // 'opening', 'gameplay', 'island', 'onIsland', 'islandReturn', 'returningHome', 'istanbulDatca', 'datca', 'datcaIstanbul', 'closing' - TEST: 'closing' olarak başlat
             openingDialogShown: false,  // Açılış dialogu gösterildi mi?
             caffeNeroDialogShown: false,  // Caffè Nero diyaloğu gösterildi mi? (tekrar açılmasın)
             dockDialogShown: false,  // İskele diyaloğu gösterildi mi? (tekrar açılmasın)
@@ -8483,6 +8483,12 @@
         function gameLoop() {
             // Canvas'ı TAMAMEN temizle
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // TEST: Kapanış sahnesini başlat (sadece ilk kez)
+            if (game.sceneState === 'closing' && !game.closingInitialized) {
+                initializeClosingScene();
+                game.closingInitialized = true;
+            }
 
             if (game.state === 'intro') {
                 // Intro screen - SADECE intro state'inde
