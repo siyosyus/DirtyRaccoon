@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>DirtyRaccoon - Mobile</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        #stage {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            grid-template-rows: 1fr auto;
+        }
+        #gameFrame {
+            width: 100vw;
+            height: 100%;
+            border: 0;
+            background: #000;
+        }
+        #controls {
+            position: relative;
+            height: 28vh;
+            max-height: 220px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 10px 14px 16px;
+            box-sizing: border-box;
+            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 25%, rgba(0,0,0,0.75) 100%);
+        }
+        .pad {
+            display: grid;
+            place-items: center;
+            gap: 10px;
+        }
+        .row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+        }
+        button.ctrl {
+            width: 84px;
+            height: 84px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font: 600 16px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            touch-action: none;
+        }
+        button.ctrl:active { background: rgba(255,255,255,0.2); }
+        .wide { width: 120px; }
+        .tall { height: 120px; }
+        .hint {
+            position: absolute;
+            top: -26px;
+            right: 16px;
+            color: rgba(255,255,255,0.7);
+            font: 500 12px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        }
+        @media (min-width: 800px) and (min-height: 480px) {
+            button.ctrl { width: 92px; height: 92px; }
+            .wide { width: 140px; }
+            .tall { height: 140px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="stage">
+        <iframe id="gameFrame" src="index.html" allow="gamepad *"></iframe>
+        <div id="controls">
+            <div class="pad" aria-label="movement pad">
+                <div class="row">
+                    <button class="ctrl wide" data-key="ArrowLeft" aria-label="sol">←</button>
+                    <button class="ctrl wide" data-key="ArrowRight" aria-label="sağ">→</button>
+                </div>
+            </div>
+            <div class="pad" aria-label="actions pad">
+                <div class="row">
+                    <button class="ctrl tall" data-key=" " aria-label="zıpla">⤴</button>
+                    <button class="ctrl tall" data-key="e" aria-label="etkileşim">E</button>
+                </div>
+            </div>
+            <div class="hint">Dokunmatik Kontroller</div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        // Prevent scrolling/zooming gestures
+        const prevent = (e) => { e.preventDefault(); };
+        ['touchstart','touchmove','touchend','gesturestart','gesturechange','gestureend'].forEach(evt => {
+            document.addEventListener(evt, prevent, { passive: false });
+        });
+
+        const frame = document.getElementById('gameFrame');
+        function sendKey(key, type) {
+            const w = frame.contentWindow;
+            if (!w) return;
+            try {
+                const event = new KeyboardEvent(type, {
+                    key: key,
+                    code: key.length === 1 ? key.toUpperCase() : key,
+                    bubbles: true,
+                    cancelable: true
+                });
+                w.dispatchEvent(event);
+                // Try also to send to document focus target inside iframe
+                if (w.document && w.document.activeElement) {
+                    w.document.activeElement.dispatchEvent(event);
+                }
+            } catch (_) {
+                // noop
+            }
+        }
+
+        function bindButton(btn) {
+            const key = btn.getAttribute('data-key');
+            let pressed = false;
+
+            const press = (e) => {
+                pressed = true;
+                sendKey(key, 'keydown');
+            };
+            const release = (e) => {
+                if (!pressed) return;
+                pressed = false;
+                sendKey(key, 'keyup');
+            };
+
+            btn.addEventListener('touchstart', press, { passive: false });
+            btn.addEventListener('touchend', release, { passive: false });
+            btn.addEventListener('touchcancel', release, { passive: false });
+            btn.addEventListener('mousedown', press);
+            btn.addEventListener('mouseup', release);
+            btn.addEventListener('mouseleave', release);
+        }
+
+        document.querySelectorAll('button.ctrl').forEach(bindButton);
+
+        // Resize handling (ensure iframe always fills viewport)
+        const fit = () => {
+            const el = document.getElementById('gameFrame');
+            el.style.width = window.innerWidth + 'px';
+            el.style.height = Math.round(window.innerHeight * 0.72) + 'px';
+        };
+        window.addEventListener('resize', fit);
+        fit();
+
+        // Attempt to focus game to ensure it receives key events
+        frame.addEventListener('load', () => {
+            try { frame.contentWindow.focus(); } catch (_) {}
+        });
+    })();
+    </script>
+</body>
+</html>
+
+
