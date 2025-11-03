@@ -7775,12 +7775,10 @@
             return;
         }
 
-        // Kapanış sahnesi çizimi
+        // Kapanış sahnesi çizimi (returningHome ile aynı)
         function drawClosing() {
-            // Boş sahne - sonra doldurulacak
-            // Şimdilik siyah arka plan
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // drawReturningHome() ile aynı içerik
+            drawReturningHome();
         }
 
         // Tekne çizme
