@@ -1630,26 +1630,24 @@
 
                 const currentQuestion = verificationQuiz.questions[verificationQuiz.currentQuestionIndex];
                 if (currentQuestion) {
-                    currentQuestion.answers.forEach((answer, index) => {
+                    let clicked = false;
+                    for (let index = 0; index < currentQuestion.answers.length; index++) {
                         const y = answerBoxY + index * answerSpacing;
-                        if (mouseX > 250 && mouseX < 550 && mouseY > y && mouseY < y + answerHeight) {
-                            if (index === currentQuestion.correctAnswer) {
-                                // Doğru cevap - bir sonraki soruya geç veya oyuna geç
-                                verificationQuiz.errorMessage = '';
-                                verificationQuiz.currentQuestionIndex++;
-                                
-                                // Tüm sorular tamamlandı mı kontrol et
-                                if (verificationQuiz.currentQuestionIndex >= verificationQuiz.questions.length) {
-                                    // Tüm sorular doğru - oyuna geç
-                                    changeGameState('playing');
-                                }
-                                // Eğer daha soru varsa, drawVerificationScreen bir sonraki soruyu gösterecek
-                            } else {
-                                // Yanlış cevap - hata mesajını göster
-                                verificationQuiz.errorMessage = 'Püh senin kalıbına!!';
+                        if (mouseX > 250 && mouseX < 550 && mouseY > y && mouseY < y + answerHeight && !clicked) {
+                            // Herhangi bir cevap verildiğinde bir sonraki soruya geç
+                            clicked = true;
+                            verificationQuiz.errorMessage = '';
+                            verificationQuiz.currentQuestionIndex++;
+                            
+                            // Tüm sorular tamamlandı mı kontrol et
+                            if (verificationQuiz.currentQuestionIndex >= verificationQuiz.questions.length) {
+                                // Tüm sorular tamamlandı - oyuna geç
+                                changeGameState('playing');
                             }
+                            // Eğer daha soru varsa, drawVerificationScreen bir sonraki soruyu gösterecek
+                            break;
                         }
-                    });
+                    }
                 }
                 return;
             }
@@ -1797,26 +1795,24 @@
 
                 const currentQuestion = verificationQuiz.questions[verificationQuiz.currentQuestionIndex];
                 if (currentQuestion) {
-                    currentQuestion.answers.forEach((answer, index) => {
+                    let clicked = false;
+                    for (let index = 0; index < currentQuestion.answers.length; index++) {
                         const y = answerBoxY + index * answerSpacing;
-                        if (mouseX > 250 && mouseX < 550 && mouseY > y && mouseY < y + answerHeight) {
-                            if (index === currentQuestion.correctAnswer) {
-                                // Doğru cevap - bir sonraki soruya geç veya oyuna geç
-                                verificationQuiz.errorMessage = '';
-                                verificationQuiz.currentQuestionIndex++;
-                                
-                                // Tüm sorular tamamlandı mı kontrol et
-                                if (verificationQuiz.currentQuestionIndex >= verificationQuiz.questions.length) {
-                                    // Tüm sorular doğru - oyuna geç
-                                    changeGameState('playing');
-                                }
-                                // Eğer daha soru varsa, drawVerificationScreen bir sonraki soruyu gösterecek
-                            } else {
-                                // Yanlış cevap - hata mesajını göster
-                                verificationQuiz.errorMessage = 'Püh senin kalıbına!!';
+                        if (mouseX > 250 && mouseX < 550 && mouseY > y && mouseY < y + answerHeight && !clicked) {
+                            // Herhangi bir cevap verildiğinde bir sonraki soruya geç
+                            clicked = true;
+                            verificationQuiz.errorMessage = '';
+                            verificationQuiz.currentQuestionIndex++;
+                            
+                            // Tüm sorular tamamlandı mı kontrol et
+                            if (verificationQuiz.currentQuestionIndex >= verificationQuiz.questions.length) {
+                                // Tüm sorular tamamlandı - oyuna geç
+                                changeGameState('playing');
                             }
+                            // Eğer daha soru varsa, drawVerificationScreen bir sonraki soruyu gösterecek
+                            break;
                         }
-                    });
+                    }
                 }
                 return;
             }
@@ -9434,16 +9430,6 @@
             // Reset text alignment
             ctx.textAlign = 'center';
             ctx.textBaseline = 'alphabetic';
-
-            // Error message (yanlış cevap uyarısı)
-            if (verificationQuiz.errorMessage) {
-                ctx.fillStyle = '#FF0000';
-                ctx.strokeStyle = '#8B0000';
-                ctx.lineWidth = 2;
-                ctx.font = 'bold 28px Arial';
-                ctx.strokeText(verificationQuiz.errorMessage, canvas.width/2, 560);
-                ctx.fillText(verificationQuiz.errorMessage, canvas.width/2, 560);
-            }
 
             // Reset text alignment
             ctx.textAlign = 'left';
